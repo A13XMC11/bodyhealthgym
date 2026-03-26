@@ -1,11 +1,13 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, CreditCard, Tag, Dumbbell } from 'lucide-react'
+import { LayoutDashboard, Users, CreditCard, Tag, Dumbbell, ClipboardList, BarChart2 } from 'lucide-react'
 
 const navItems = [
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/admin/clientes', icon: Users, label: 'Clientes' },
   { to: '/admin/pagos', icon: CreditCard, label: 'Pagos' },
   { to: '/admin/promociones', icon: Tag, label: 'Promociones' },
+  { to: '/admin/asistencia', icon: ClipboardList, label: 'Asistencia' },
+  { to: '/admin/reportes', icon: BarChart2, label: 'Reportes' },
 ]
 
 export default function Sidebar() {

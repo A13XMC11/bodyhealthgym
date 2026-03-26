@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
-import { Plus, Search, UserCheck, UserX, X, CreditCard } from 'lucide-react'
+import { Plus, Search, UserCheck, UserX, X, CreditCard, ClipboardList } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { demoClients, demoPayments, getMembershipStatus } from '../../lib/demoData'
+import { demoClients, demoPayments, getMembershipStatus, getDemoAttendanceForClient } from '../../lib/demoData'
 
 export default function Clientes() {
   const { isDemo } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [clients, setClients] = useState([])
   const [filtered, setFiltered] = useState([])
   const [search, setSearch] = useState('')
@@ -17,11 +19,26 @@ export default function Clientes() {
   const [showModal, setShowModal] = useState(false)
   const [showPagos, setShowPagos] = useState(null)
   const [pagos, setPagos] = useState([])
+  const [asistencias, setAsistencias] = useState([])
   const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState('pagos')
+  const [highlightId, setHighlightId] = useState(null)
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm()
 
   useEffect(() => { fetchClients() }, [isDemo])
+
+  useEffect(() => {
+    const hid = searchParams.get('highlight')
+    if (!hid) return
+    setHighlightId(hid)
+    const timer = setTimeout(() => {
+      setHighlightId(null)
+      searchParams.delete('highlight')
+      setSearchParams(searchParams)
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     const q = search.toLowerCase()
@@ -140,17 +157,28 @@ export default function Clientes() {
 
   const verPagos = async (client) => {
     setShowPagos(client)
+    setActiveTab('pagos')
     if (isDemo) {
       const clientPagos = demoPayments.filter((p) => p.client_id === client.id)
+      const clientAsistencias = getDemoAttendanceForClient(client.id)
       setPagos(clientPagos)
+      setAsistencias(clientAsistencias)
       return
     }
-    const { data } = await supabase
-      .from('payments')
-      .select('*, promotions(nombre)')
-      .eq('client_id', client.id)
-      .order('fecha_pago', { ascending: false })
-    setPagos(data || [])
+    const [p, a] = await Promise.all([
+      supabase
+        .from('payments')
+        .select('*, promotions(nombre)')
+        .eq('client_id', client.id)
+        .order('fecha_pago', { ascending: false }),
+      supabase
+        .from('attendance')
+        .select('*')
+        .eq('client_id', client.id)
+        .order('fecha', { ascending: false }),
+    ])
+    setPagos(p.data || [])
+    setAsistencias(a.data || [])
   }
 
   return (
@@ -204,7 +232,13 @@ export default function Clientes() {
                 {filtered.map((client) => {
                   const membershipStatus = getMembershipStatus(client.id)
                   return (
-                  <tr key={client.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
+                  <tr
+                    key={client.id}
+                    id={`row-${client.id}`}
+                    className={`border-b border-white/5 hover:bg-white/2 transition-all ${
+                      client.id === highlightId ? 'bg-gym-red/10 outline outline-1 outline-gym-red/50' : ''
+                    }`}
+                  >
                     <td className="px-6 py-4">
                       <div className="font-semibold text-white text-sm">{client.nombre} {client.apellido}</div>
                     </td>
@@ -307,7 +341,7 @@ export default function Clientes() {
         </div>
       )}
 
-      {/* Modal: Payment history */}
+      {/* Modal: Payment history + Attendance */}
       {showPagos && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-gym-dark border border-white/10 rounded-2xl p-8 w-full max-w-lg shadow-2xl max-h-[80vh] overflow-y-auto">
@@ -319,24 +353,71 @@ export default function Clientes() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            {pagos.length === 0 ? (
-              <p className="text-gym-gray text-center py-8">Sin pagos registrados</p>
-            ) : (
-              <div className="space-y-3">
-                {pagos.map((pago) => (
-                  <div key={pago.id} className="bg-gym-black border border-white/5 rounded-xl p-4 flex items-center justify-between">
-                    <div>
-                      <div className="text-white text-sm font-semibold capitalize">{pago.tipo}</div>
-                      <div className="text-gym-gray text-xs mt-0.5">
-                        {format(new Date(pago.fecha_pago), 'dd MMM yyyy', { locale: es })}
-                        {pago.promotions && <span className="ml-2 text-gym-red">· {pago.promotions.nombre}</span>}
+
+            {/* Tab Bar */}
+            <div className="flex gap-1 mb-6 bg-gym-black rounded-xl p-1">
+              {[
+                ['pagos', '💳 Pagos'],
+                ['asistencias', '📋 Asistencias'],
+              ].map(([tab, label]) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${
+                    activeTab === tab ? 'bg-gym-red text-white' : 'text-gym-gray hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Pagos Tab */}
+            {activeTab === 'pagos' && (
+              <>
+                {pagos.length === 0 ? (
+                  <p className="text-gym-gray text-center py-8">Sin pagos registrados</p>
+                ) : (
+                  <div className="space-y-3">
+                    {pagos.map((pago) => (
+                      <div key={pago.id} className="bg-gym-black border border-white/5 rounded-xl p-4 flex items-center justify-between">
+                        <div>
+                          <div className="text-white text-sm font-semibold capitalize">{pago.tipo}</div>
+                          <div className="text-gym-gray text-xs mt-0.5">
+                            {format(new Date(pago.fecha_pago), 'dd MMM yyyy', { locale: es })}
+                            {pago.promotions && <span className="ml-2 text-gym-red">· {pago.promotions.nombre}</span>}
+                          </div>
+                          {pago.notas && <div className="text-gym-gray text-xs mt-0.5 italic">{pago.notas}</div>}
+                        </div>
+                        <div className="text-gym-red font-black text-lg">${Number(pago.monto).toFixed(2)}</div>
                       </div>
-                      {pago.notas && <div className="text-gym-gray text-xs mt-0.5 italic">{pago.notas}</div>}
-                    </div>
-                    <div className="text-gym-red font-black text-lg">${Number(pago.monto).toFixed(2)}</div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </>
+            )}
+
+            {/* Asistencias Tab */}
+            {activeTab === 'asistencias' && (
+              <>
+                {asistencias.length === 0 ? (
+                  <p className="text-gym-gray text-center py-8">Sin asistencias registradas</p>
+                ) : (
+                  <div className="space-y-3">
+                    {asistencias.map((asist) => (
+                      <div key={asist.id} className="bg-gym-black border border-white/5 rounded-xl p-4 flex items-center justify-between">
+                        <div>
+                          <div className="text-white text-sm font-semibold">
+                            {format(new Date(asist.fecha), 'dd MMM yyyy', { locale: es })}
+                          </div>
+                          <div className="text-gym-gray text-xs mt-0.5">{asist.hora}</div>
+                        </div>
+                        <ClipboardList className="w-4 h-4 text-gym-red" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

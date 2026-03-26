@@ -272,3 +272,58 @@ export function getUnpaidMembers() {
     return !paidThisMonth && client.estado === 'activo'
   })
 }
+
+// Demo attendance data
+const todayDate = format(today, 'yyyy-MM-dd')
+const yesterday = format(subDays(today, 1), 'yyyy-MM-dd')
+const twoDaysAgo = format(subDays(today, 2), 'yyyy-MM-dd')
+const threeDaysAgo = format(subDays(today, 3), 'yyyy-MM-dd')
+const fourDaysAgo = format(subDays(today, 4), 'yyyy-MM-dd')
+const fiveDaysAgo = format(subDays(today, 5), 'yyyy-MM-dd')
+
+export const demoAttendance = [
+  // Today (2 entries)
+  { id: 'att_001', client_id: '1', fecha: todayDate, hora: '07:15', created_at: `${todayDate}T07:15:00Z`, clients: { nombre: 'Juan', apellido: 'Pérez' } },
+  { id: 'att_002', client_id: '2', fecha: todayDate, hora: '08:30', created_at: `${todayDate}T08:30:00Z`, clients: { nombre: 'María', apellido: 'García' } },
+  // Previous days
+  { id: 'att_003', client_id: '1', fecha: yesterday, hora: '07:20', created_at: `${yesterday}T07:20:00Z`, clients: { nombre: 'Juan', apellido: 'Pérez' } },
+  { id: 'att_004', client_id: '3', fecha: twoDaysAgo, hora: '09:00', created_at: `${twoDaysAgo}T09:00:00Z`, clients: { nombre: 'Carlos', apellido: 'López' } },
+  { id: 'att_005', client_id: '2', fecha: threeDaysAgo, hora: '08:45', created_at: `${threeDaysAgo}T08:45:00Z`, clients: { nombre: 'María', apellido: 'García' } },
+  { id: 'att_006', client_id: '1', fecha: fiveDaysAgo, hora: '07:00', created_at: `${fiveDaysAgo}T07:00:00Z`, clients: { nombre: 'Juan', apellido: 'Pérez' } },
+]
+
+// Get attendance for today
+export function getDemoAttendanceToday() {
+  const todayStr = format(today, 'yyyy-MM-dd')
+  return demoAttendance.filter((a) => a.fecha === todayStr).sort((a, b) => b.hora.localeCompare(a.hora))
+}
+
+// Get attendance for a specific client
+export function getDemoAttendanceForClient(clientId) {
+  return demoAttendance.filter((a) => a.client_id === clientId).sort((a, b) => {
+    if (a.fecha !== b.fecha) return new Date(b.fecha) - new Date(a.fecha)
+    return b.hora.localeCompare(a.hora)
+  })
+}
+
+// Add attendance record (for marking entrada)
+export function addDemoAttendance(clientId) {
+  const client = demoClients.find((c) => c.id === clientId)
+  if (!client) return null
+
+  const now = new Date()
+  const fecha = format(now, 'yyyy-MM-dd')
+  const hora = format(now, 'HH:mm')
+
+  const newRecord = {
+    id: 'att_' + Date.now(),
+    client_id: clientId,
+    fecha,
+    hora,
+    created_at: now.toISOString(),
+    clients: { nombre: client.nombre, apellido: client.apellido },
+  }
+
+  demoAttendance.unshift(newRecord)
+  return newRecord
+}

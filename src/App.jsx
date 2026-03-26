@@ -8,6 +8,8 @@ import Dashboard from './pages/admin/Dashboard'
 import Clientes from './pages/admin/Clientes'
 import Pagos from './pages/admin/Pagos'
 import Promociones from './pages/admin/Promociones'
+import Asistencia from './pages/admin/Asistencia'
+import Reportes from './pages/admin/Reportes'
 import AdminLayout from './components/admin/AdminLayout'
 
 export default function App() {
@@ -39,6 +41,8 @@ export default function App() {
           <Route path="clientes" element={<Clientes />} />
           <Route path="pagos" element={<Pagos />} />
           <Route path="promociones" element={<Promociones />} />
+          <Route path="asistencia" element={<Asistencia />} />
+          <Route path="reportes" element={<Reportes />} />
         </Route>
       </Routes>
     </AuthProvider>

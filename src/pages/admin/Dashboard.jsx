@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { Users, DollarSign, AlertCircle, TrendingUp, AlertTriangle } from 'lucide-react'
+import { Users, DollarSign, AlertCircle, TrendingUp, AlertTriangle, ClipboardList, MessageCircle } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { calculateDemoMetrics, calculateDemoChartData, demoClients, demoMemberships, demoPayments, getMembershipStatus, getUnpaidMembers } from '../../lib/demoData'
+import { calculateDemoMetrics, calculateDemoChartData, demoClients, demoMemberships, demoPayments, getMembershipStatus, getUnpaidMembers, getDemoAttendanceToday } from '../../lib/demoData'
 
 export default function Dashboard() {
   const { isDemo } = useAuth()
@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [unpaidMembers, setUnpaidMembers] = useState([])
   const [expiringMembers, setExpiringMembers] = useState([])
+  const [asistenciasHoy, setAsistenciasHoy] = useState(0)
 
   useEffect(() => {
     fetchMetrics()
@@ -25,6 +26,7 @@ export default function Dashboard() {
         const demoMetrics = calculateDemoMetrics()
         setMetrics(demoMetrics)
         setChartData(calculateDemoChartData())
+        setAsistenciasHoy(getDemoAttendanceToday().length)
 
         // Unpaid members (should pay this month)
         const unpaid = getUnpaidMembers()
@@ -45,10 +47,11 @@ export default function Dashboard() {
       const thisMonthStart = startOfMonth(now).toISOString()
       const thisMonthEnd = endOfMonth(now).toISOString()
 
-      const [clientsRes, paymentsRes, membershipsRes] = await Promise.all([
-        supabase.from('clients').select('id, estado'),
+      const [clientsRes, paymentsRes, membershipsRes, attendanceRes] = await Promise.all([
+        supabase.from('clients').select('id, nombre, apellido, telefono, estado'),
         supabase.from('payments').select('monto, fecha_pago').gte('fecha_pago', thisMonthStart).lte('fecha_pago', thisMonthEnd),
         supabase.from('memberships').select('id, fecha_vencimiento, estado').eq('estado', 'activa'),
+        supabase.from('attendance').select('id').eq('fecha', format(now, 'yyyy-MM-dd')),
       ])
 
       const activos = (clientsRes.data || []).filter((c) => c.estado === 'activo').length
@@ -62,6 +65,7 @@ export default function Dashboard() {
       }).length
 
       setMetrics({ activos, ingresos, pendientes: porVencer, porVencer })
+      setAsistenciasHoy((attendanceRes.data || []).length)
 
       // Chart: last 6 months
       const months = Array.from({ length: 6 }, (_, i) => {
@@ -87,8 +91,15 @@ export default function Dashboard() {
     { label: 'Clientes Activos', value: metrics.activos, icon: Users, color: 'text-blue-400' },
     { label: 'Ingresos del Mes', value: `$${metrics.ingresos.toFixed(2)}`, icon: DollarSign, color: 'text-green-400' },
     { label: 'Membresías por Vencer', value: metrics.porVencer, icon: AlertCircle, color: 'text-yellow-400' },
+    { label: 'Asistencias Hoy', value: asistenciasHoy, icon: ClipboardList, color: 'text-purple-400' },
     { label: 'Total Pagos Mes', value: metrics.ingresos > 0 ? '✓' : '—', icon: TrendingUp, color: 'text-gym-red' },
   ]
+
+  const sendWhatsApp = (phone, message) => {
+    if (!phone) return
+    const clean = phone.replace(/[\s+\-()]/g, '')
+    window.open(`https://wa.me/${clean}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+  }
 
   if (loading) {
     return (
@@ -106,7 +117,7 @@ export default function Dashboard() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {cards.map((card) => (
           <div key={card.label} className="bg-gym-dark border border-white/5 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3">
@@ -149,16 +160,31 @@ export default function Dashboard() {
               </div>
               <div className="space-y-2">
                 {unpaidMembers.map((member) => (
-                  <div key={member.id} className="bg-gym-black rounded-lg p-3 flex items-center justify-between">
+                  <div key={member.id} className="bg-gym-black rounded-lg p-3 flex items-center justify-between gap-3">
                     <div>
                       <div className="text-white font-semibold text-sm">
                         {member.nombre} {member.apellido}
                       </div>
                       <div className="text-red-400 text-xs mt-0.5">{member.email}</div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-red-400 font-bold text-sm">$25</div>
-                      <div className="text-gym-gray text-xs">mensual</div>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <div className="text-red-400 font-bold text-sm">$25</div>
+                        <div className="text-gym-gray text-xs">mensual</div>
+                      </div>
+                      <button
+                        onClick={() =>
+                          sendWhatsApp(
+                            member.telefono,
+                            `Hola ${member.nombre}, tienes un pago pendiente de $25 en Body Health Gym. ¡Te esperamos!`
+                          )
+                        }
+                        disabled={!member.telefono}
+                        title={member.telefono ? 'Enviar WhatsApp' : 'Agrega el teléfono del cliente para enviar WhatsApp'}
+                        className="p-2 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -176,18 +202,34 @@ export default function Dashboard() {
               <div className="space-y-2">
                 {expiringMembers.map((member) => {
                   const status = getMembershipStatus(member.id)
+                  const mem = demoMemberships.find((m) => m.client_id === member.id && m.estado === 'activa')
+                  const daysLeft = mem ? Math.max(0, Math.floor((new Date(mem.fecha_vencimiento) - new Date()) / 86400000)) : 0
+                  const daysText = daysLeft === 0 ? 'hoy' : `en ${daysLeft} días`
                   return (
-                    <div key={member.id} className="bg-gym-black rounded-lg p-3 flex items-center justify-between">
+                    <div key={member.id} className="bg-gym-black rounded-lg p-3 flex items-center justify-between gap-3">
                       <div>
                         <div className="text-white font-semibold text-sm">
                           {member.nombre} {member.apellido}
                         </div>
                         <div className="text-yellow-400 text-xs mt-0.5">{member.email}</div>
                       </div>
-                      <div className="text-right">
+                      <div className="flex items-center gap-2">
                         <span className={`text-xs font-bold px-3 py-1 rounded-full ${status.color}`}>
                           {status.label}
                         </span>
+                        <button
+                          onClick={() =>
+                            sendWhatsApp(
+                              member.telefono,
+                              `Hola ${member.nombre}, tu membresía de Body Health Gym vence ${daysText}. Renueva por $25.`
+                            )
+                          }
+                          disabled={!member.telefono}
+                          title={member.telefono ? 'Enviar WhatsApp' : 'Agrega el teléfono del cliente para enviar WhatsApp'}
+                          className="p-2 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   )
