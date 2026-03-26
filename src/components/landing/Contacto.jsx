@@ -1,4 +1,8 @@
-import { MapPin, Phone, Clock, Mail } from 'lucide-react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { supabase } from '../../lib/supabase'
+import toast from 'react-hot-toast'
+import { MapPin, Phone, Clock, Mail, Loader } from 'lucide-react'
 
 const info = [
   { icon: MapPin, label: 'Dirección', value: 'Av. Principal #123, Ciudad' },
@@ -7,7 +11,48 @@ const info = [
   { icon: Clock, label: 'Horario', value: 'Lun–Sáb: 5am–10pm | Dom: 7am–3pm' },
 ]
 
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+const validateNombre = (nombre) => {
+  if (!nombre || nombre.trim().length < 3) return false
+  return true
+}
+
+const validateMensaje = (mensaje) => {
+  if (!mensaje || mensaje.trim().length < 10) return false
+  return true
+}
+
 export default function Contacto() {
+  const [sending, setSending] = useState(false)
+  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+    mode: 'onChange',
+  })
+
+  const onSubmit = async (formData) => {
+    setSending(true)
+    try {
+      const { error } = await supabase.from('contact_messages').insert({
+        nombre: formData.nombre.trim(),
+        email: formData.email.trim(),
+        mensaje: formData.mensaje.trim(),
+      })
+
+      if (error) throw error
+
+      toast.success('✅ Mensaje enviado correctamente')
+      reset()
+    } catch (err) {
+      toast.error('❌ Error al enviar, intenta de nuevo')
+      console.error(err)
+    } finally {
+      setSending(false)
+    }
+  }
+
   return (
     <section id="contacto" className="py-24 px-4 bg-gym-dark">
       <div className="max-w-7xl mx-auto">
@@ -35,27 +80,84 @@ export default function Contacto() {
 
           <div className="bg-gym-black border border-white/5 rounded-2xl p-8">
             <h3 className="text-white font-bold text-xl mb-6">Envíanos un mensaje</h3>
-            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-              <input
-                type="text"
-                placeholder="Tu nombre"
-                className="w-full bg-gym-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gym-gray focus:outline-none focus:border-gym-red transition-colors"
-              />
-              <input
-                type="email"
-                placeholder="Tu correo"
-                className="w-full bg-gym-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gym-gray focus:outline-none focus:border-gym-red transition-colors"
-              />
-              <textarea
-                rows={4}
-                placeholder="Tu mensaje..."
-                className="w-full bg-gym-dark border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gym-gray focus:outline-none focus:border-gym-red transition-colors resize-none"
-              />
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* Nombre */}
+              <div>
+                <input
+                  type="text"
+                  placeholder="Tu nombre"
+                  {...register('nombre', {
+                    required: 'El nombre es requerido',
+                    validate: {
+                      minLength: (v) => (v.trim().length >= 3) || 'Mínimo 3 caracteres',
+                      noOnlySpaces: (v) => (v.trim().length > 0) || 'El nombre no puede estar vacío',
+                    },
+                  })}
+                  className={`w-full bg-gym-dark border rounded-lg px-4 py-3 text-white placeholder-gym-gray focus:outline-none transition-colors ${
+                    errors.nombre ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-gym-red'
+                  }`}
+                />
+                {errors.nombre && (
+                  <p className="text-red-500 text-xs mt-1 font-medium">{errors.nombre.message}</p>
+                )}
+              </div>
+
+              {/* Email */}
+              <div>
+                <input
+                  type="email"
+                  placeholder="Tu correo"
+                  {...register('email', {
+                    required: 'El email es requerido',
+                    validate: {
+                      validEmail: (v) => validateEmail(v.trim()) || 'Email inválido (debe incluir @ y dominio)',
+                      noSpaces: (v) => !v.includes(' ') || 'El email no puede contener espacios',
+                    },
+                  })}
+                  className={`w-full bg-gym-dark border rounded-lg px-4 py-3 text-white placeholder-gym-gray focus:outline-none transition-colors ${
+                    errors.email ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-gym-red'
+                  }`}
+                />
+                {errors.email && (
+                  <p className="text-red-500 text-xs mt-1 font-medium">{errors.email.message}</p>
+                )}
+              </div>
+
+              {/* Mensaje */}
+              <div>
+                <textarea
+                  rows={4}
+                  placeholder="Tu mensaje..."
+                  {...register('mensaje', {
+                    required: 'El mensaje es requerido',
+                    validate: {
+                      minLength: (v) => (v.trim().length >= 10) || 'Mínimo 10 caracteres',
+                      noOnlySpaces: (v) => (v.trim().length > 0) || 'El mensaje no puede estar vacío',
+                    },
+                  })}
+                  className={`w-full bg-gym-dark border rounded-lg px-4 py-3 text-white placeholder-gym-gray focus:outline-none transition-colors resize-none ${
+                    errors.mensaje ? 'border-red-500 focus:border-red-500' : 'border-white/10 focus:border-gym-red'
+                  }`}
+                />
+                {errors.mensaje && (
+                  <p className="text-red-500 text-xs mt-1 font-medium">{errors.mensaje.message}</p>
+                )}
+              </div>
+
+              {/* Botón Enviar */}
               <button
                 type="submit"
-                className="w-full bg-gym-red hover:bg-gym-red-hover text-white font-bold py-3 rounded-lg transition-colors"
+                disabled={sending || Object.keys(errors).length > 0}
+                className="w-full bg-gym-red hover:bg-gym-red-hover disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
               >
-                Enviar mensaje
+                {sending ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  'Enviar mensaje'
+                )}
               </button>
             </form>
           </div>
