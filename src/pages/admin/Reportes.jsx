@@ -3,10 +3,12 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import toast from 'react-hot-toast'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays } from 'date-fns'
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, startOfYear, endOfYear, eachMonthOfInterval } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { DollarSign, FileDown, Users, TrendingUp } from 'lucide-react'
-import { demoClients, demoPayments } from '../../lib/demoData'
+import { DollarSign, FileDown, Users, TrendingUp, BarChart2 } from 'lucide-react'
+import { demoClients, demoPayments, calculateSmartYScale } from '../../lib/demoData'
+
+const today = new Date()
 
 export default function Reportes() {
   const { isDemo } = useAuth()
@@ -23,48 +25,14 @@ export default function Reportes() {
     setLoading(true)
     try {
       if (isDemo) {
-        const now = new Date()
-        let start, end
-
-        if (activeTab === 'diario') {
-          start = startOfDay(now)
-          end = endOfDay(now)
-        } else if (activeTab === 'semanal') {
-          start = startOfWeek(now)
-          end = endOfWeek(now)
-        } else {
-          start = startOfMonth(now)
-          end = endOfMonth(now)
-        }
-
-        // Filtrar demoPayments por período
-        const filtered = demoPayments.filter((p) => {
-          const paymentDate = new Date(p.fecha_pago)
-          return paymentDate >= start && paymentDate <= end
-        })
-
         setClients(demoClients)
-        setPayments(filtered)
+        setPayments(demoPayments)
         setLoading(false)
         return
       }
 
-      const now = new Date()
-      let start, end
-
-      if (activeTab === 'diario') {
-        start = startOfDay(now).toISOString()
-        end = endOfDay(now).toISOString()
-      } else if (activeTab === 'semanal') {
-        start = startOfWeek(now).toISOString()
-        end = endOfWeek(now).toISOString()
-      } else {
-        start = startOfMonth(now).toISOString()
-        end = endOfMonth(now).toISOString()
-      }
-
       const [paymentsRes, clientsRes] = await Promise.all([
-        supabase.from('payments').select('*, clients(nombre, apellido)').gte('fecha_pago', start).lte('fecha_pago', end),
+        supabase.from('payments').select('*, clients(nombre, apellido)'),
         supabase.from('clients').select('id, nombre, apellido, estado'),
       ])
 
@@ -79,51 +47,161 @@ export default function Reportes() {
   }
 
   const reportData = useMemo(() => {
-    const totalIngresos = payments.reduce((sum, p) => sum + Number(p.monto), 0)
-    const nuevos = payments.filter((p) => p.tipo === 'inscripcion').length
-    const renovaciones = payments.filter((p) => p.tipo === 'mensual').length
+    // Total ingresos ANUALES (enero - diciembre del año actual)
+    const yearStart = format(startOfYear(today), 'yyyy-MM-dd')
+    const yearEnd = format(endOfYear(today), 'yyyy-MM-dd')
+    const yearPayments = payments.filter((p) => p.fecha_pago >= yearStart && p.fecha_pago <= yearEnd)
+    const totalIngresosAnual = yearPayments.reduce((sum, p) => sum + Number(p.monto), 0)
+
+    // Filtrar pagos según el tab actual
+    let filteredPayments = []
+    let rangeStart, rangeEnd
+
+    if (activeTab === 'diario') {
+      rangeStart = startOfDay(today)
+      rangeEnd = endOfDay(today)
+    } else if (activeTab === 'semanal') {
+      rangeStart = startOfWeek(today, { weekStartsOn: 1 }) // Lunes
+      rangeEnd = endOfWeek(today, { weekStartsOn: 1 }) // Domingo
+    } else {
+      rangeStart = startOfMonth(today)
+      rangeEnd = endOfMonth(today)
+    }
+
+    filteredPayments = payments.filter((p) => {
+      const paymentDate = new Date(p.fecha_pago)
+      return paymentDate >= rangeStart && paymentDate <= rangeEnd
+    })
+
+    const totalIngresos = filteredPayments.reduce((sum, p) => sum + Number(p.monto), 0)
+    const nuevos = filteredPayments.filter((p) => p.tipo === 'inscripcion').length
+    const renovaciones = filteredPayments.filter((p) => p.tipo === 'mensual').length
 
     const byTipo = [
-      { tipo: 'Inscripción', cantidad: nuevos, monto: payments.filter((p) => p.tipo === 'inscripcion').reduce((s, p) => s + Number(p.monto), 0) },
-      { tipo: 'Mensual', cantidad: renovaciones, monto: payments.filter((p) => p.tipo === 'mensual').reduce((s, p) => s + Number(p.monto), 0) },
+      {
+        tipo: 'Inscripción',
+        cantidad: nuevos,
+        monto: filteredPayments.filter((p) => p.tipo === 'inscripcion').reduce((s, p) => s + Number(p.monto), 0),
+      },
+      {
+        tipo: 'Mensual',
+        cantidad: renovaciones,
+        monto: filteredPayments.filter((p) => p.tipo === 'mensual').reduce((s, p) => s + Number(p.monto), 0),
+      },
     ]
 
     const promoMap = {}
-    payments.forEach((p) => {
+    filteredPayments.forEach((p) => {
       if (p.promocion_id) {
         promoMap[p.promocion_id] = (promoMap[p.promocion_id] || 0) + Number(p.monto)
       }
     })
-    const promos = Object.entries(promoMap).map(([promoId, monto]) => {
-      const promo = payments.find((p) => p.promocion_id === promoId)
-      return { nombre: promo?.promotions?.nombre || 'Promoción desconocida', monto }
-    })
+    const promos = Object.entries(promoMap).map(([promoId, monto]) => ({
+      nombre: `Promoción ${promoId}`,
+      monto,
+    }))
 
-    // Chart data (daily breakdown for the selected period)
-    const now = new Date()
-    let dateRange = []
+    // Chart data dinámico según tab
+    let chartData = []
+    let yAxisScale = { min: 0, max: 100, step: 10 }
+
     if (activeTab === 'diario') {
-      dateRange = [format(now, 'yyyy-MM-dd')]
+      // Gráfica por HORAS del día
+      const hours = ['06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00']
+      chartData = hours.map((hour) => {
+        const [hourNum] = hour.split(':').map(Number)
+        const nextHourNum = (hourNum + 2) % 24
+
+        // Pagos en esa franja horaria
+        const hourPayments = filteredPayments.filter((p) => {
+          const pDate = new Date(p.fecha_pago)
+          const pHour = pDate.getHours()
+          return pHour >= hourNum && pHour < nextHourNum
+        })
+
+        const ingresos = hourPayments.reduce((s, p) => s + Number(p.monto), 0)
+        return { hora: hour, ingresos, label: hour }
+      })
+
+      const maxIncome = Math.max(...chartData.map((d) => d.ingresos), 0)
+      yAxisScale = calculateSmartYScale(maxIncome)
     } else if (activeTab === 'semanal') {
-      dateRange = Array.from({ length: 7 }, (_, i) => format(subDays(now, 6 - i), 'yyyy-MM-dd'))
+      // Gráfica por DÍAS de la semana
+      const weekStart = startOfWeek(today, { weekStartsOn: 1 })
+      const dayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sab', 'Dom']
+
+      chartData = Array.from({ length: 7 }, (_, i) => {
+        const date = subDays(weekStart, -i)
+        const dateStr = format(date, 'yyyy-MM-dd')
+        const dayPayments = filteredPayments.filter((p) => p.fecha_pago === dateStr)
+        const ingresos = dayPayments.reduce((s, p) => s + Number(p.monto), 0)
+        const dayNum = date.getDate()
+        const monthStr = format(date, 'MMM', { locale: es })
+
+        return {
+          fecha: dayLabels[i],
+          ingresos,
+          label: `${dayLabels[i]} ${dayNum} ${monthStr}`,
+        }
+      })
+
+      const maxIncome = Math.max(...chartData.map((d) => d.ingresos), 0)
+      yAxisScale = calculateSmartYScale(maxIncome)
     } else {
-      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-      dateRange = Array.from({ length: daysInMonth }, (_, i) =>
-        format(new Date(now.getFullYear(), now.getMonth(), i + 1), 'yyyy-MM-dd')
-      )
+      // Gráfica por MESES del año
+      const allMonths = eachMonthOfInterval({
+        start: startOfYear(today),
+        end: endOfYear(today),
+      })
+
+      chartData = allMonths.map((monthDate) => {
+        const monthStr = format(monthDate, 'yyyy-MM')
+        const monthPayments = payments.filter((p) => p.fecha_pago.startsWith(monthStr))
+        const ingresos = monthPayments.reduce((s, p) => s + Number(p.monto), 0)
+        const monthLabel = format(monthDate, 'MMM', { locale: es })
+
+        return {
+          mes: monthLabel,
+          ingresos,
+          label: monthLabel,
+          isCurrent: monthStr === format(today, 'yyyy-MM'),
+        }
+      })
+
+      const maxIncome = Math.max(...chartData.map((d) => d.ingresos), 0)
+      yAxisScale = calculateSmartYScale(maxIncome)
     }
 
-    const chartData = dateRange.map((dateStr) => {
-      const dayPayments = payments.filter((p) => p.fecha_pago === dateStr)
-      const dayIncome = dayPayments.reduce((s, p) => s + Number(p.monto), 0)
-      return {
-        fecha: activeTab === 'diario' ? format(new Date(dateStr), 'HH:mm') : format(new Date(dateStr), 'dd MMM'),
-        ingresos: dayIncome,
-      }
-    })
-
-    return { totalIngresos, nuevos, renovaciones, byTipo, promos, chartData }
+    return {
+      totalIngresosAnual,
+      totalIngresos,
+      nuevos,
+      renovaciones,
+      byTipo,
+      promos,
+      chartData,
+      yAxisScale,
+      rangeStart,
+      rangeEnd,
+    }
   }, [payments, activeTab])
+
+  const getChartTitle = () => {
+    if (activeTab === 'diario') {
+      const dayName = format(today, 'EEEE', { locale: es })
+      const dateStr = format(today, 'd MMM', { locale: es })
+      return `Ingresos de Hoy - ${dayName.charAt(0).toUpperCase() + dayName.slice(1)} ${dateStr}`
+    } else if (activeTab === 'semanal') {
+      const weekStart = startOfWeek(today, { weekStartsOn: 1 })
+      const weekEnd = endOfWeek(today, { weekStartsOn: 1 })
+      const startStr = format(weekStart, 'd MMM', { locale: es })
+      const endStr = format(weekEnd, 'd MMM', { locale: es })
+      return `Ingresos Semana ${startStr} - ${endStr}`
+    } else {
+      const year = today.getFullYear()
+      return `Ingresos Mensuales ${year}`
+    }
+  }
 
   const exportPDF = async () => {
     try {
@@ -209,6 +287,8 @@ export default function Reportes() {
     )
   }
 
+  const hasChartData = reportData.chartData.some((d) => d.ingresos > 0)
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -248,10 +328,12 @@ export default function Reportes() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-gym-dark border border-white/5 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-gym-gray text-xs font-semibold uppercase tracking-wider">Total Ingresos</span>
+            <span className="text-gym-gray text-xs font-semibold uppercase tracking-wider">
+              Total Ingresos Año {today.getFullYear()}
+            </span>
             <DollarSign className="w-5 h-5 text-green-400" />
           </div>
-          <div className="text-3xl font-black text-white">${reportData.totalIngresos.toFixed(2)}</div>
+          <div className="text-3xl font-black text-white">${reportData.totalIngresosAnual.toFixed(2)}</div>
         </div>
 
         <div className="bg-gym-dark border border-white/5 rounded-2xl p-5">
@@ -273,19 +355,44 @@ export default function Reportes() {
 
       {/* Chart */}
       <div className="bg-gym-dark border border-white/5 rounded-2xl p-6">
-        <h3 className="text-white font-bold mb-6">Ingresos Diarios</h3>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={reportData.chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-            <XAxis dataKey="fecha" tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-            <Tooltip
-              contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', borderRadius: '8px', color: '#fff' }}
-              formatter={(value) => [`$${value}`, 'Ingresos']}
-            />
-            <Bar dataKey="ingresos" fill="#dc2626" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+        <h3 className="text-white font-bold mb-6">{getChartTitle()}</h3>
+
+        {hasChartData ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={reportData.chartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+              <XAxis
+                dataKey={activeTab === 'mensual' ? 'mes' : 'hora' in reportData.chartData[0] ? 'hora' : 'fecha'}
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                axisLine={false}
+                tickLine={false}
+                interval={activeTab === 'diario' ? 0 : activeTab === 'semanal' ? 0 : 0}
+              />
+              <YAxis
+                domain={[reportData.yAxisScale.min, reportData.yAxisScale.max]}
+                ticks={Array.from({ length: 6 }, (_, i) => reportData.yAxisScale.min + (i * reportData.yAxisScale.step))}
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `$${v}`}
+              />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', borderRadius: '8px', color: '#fff' }}
+                formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Ingresos']}
+                labelFormatter={(label) => {
+                  // Usar el label dinámico si existe
+                  const dataPoint = reportData.chartData.find(
+                    (d) => d[activeTab === 'mensual' ? 'mes' : 'hora' in d ? 'hora' : 'fecha'] === label
+                  )
+                  return dataPoint?.label || label
+                }}
+              />
+              <Bar dataKey="ingresos" fill="#dc2626" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <EmptyChart label={`Sin ingresos registrados ${activeTab === 'diario' ? 'hoy' : activeTab === 'semanal' ? 'esta semana' : 'este mes'}`} />
+        )}
       </div>
 
       {/* By Tipo + Promos */}
@@ -323,6 +430,16 @@ export default function Reportes() {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// Empty state component
+function EmptyChart({ label }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-48 text-gym-gray">
+      <BarChart2 className="w-12 h-12 mb-2 opacity-30" />
+      <p className="text-sm">{label}</p>
     </div>
   )
 }
