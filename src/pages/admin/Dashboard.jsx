@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { Users, DollarSign, AlertCircle, TrendingUp, AlertTriangle, ClipboardList, MessageCircle } from 'lucide-react'
+import { Users, DollarSign, AlertCircle, AlertTriangle, ClipboardList, MessageCircle } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -92,7 +92,6 @@ export default function Dashboard() {
     { label: 'Ingresos del Mes', value: `$${metrics.ingresos.toFixed(2)}`, icon: DollarSign, color: 'text-green-400' },
     { label: 'Membresías por Vencer', value: metrics.porVencer, icon: AlertCircle, color: 'text-yellow-400' },
     { label: 'Asistencias Hoy', value: asistenciasHoy, icon: ClipboardList, color: 'text-purple-400' },
-    { label: 'Total Pagos Mes', value: metrics.ingresos > 0 ? '✓' : '—', icon: TrendingUp, color: 'text-gym-red' },
   ]
 
   const sendWhatsApp = (phone, message) => {
@@ -117,7 +116,7 @@ export default function Dashboard() {
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((card) => (
           <div key={card.label} className="bg-gym-dark border border-white/5 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3">
@@ -133,13 +132,16 @@ export default function Dashboard() {
       <div className="bg-gym-dark border border-white/5 rounded-2xl p-6">
         <h3 className="text-white font-bold mb-6">Ingresos Últimos 6 Meses</h3>
         <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={chartData}>
+          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
             <XAxis dataKey="mes" tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
             <Tooltip
-              contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', borderRadius: '8px', color: '#fff' }}
-              formatter={(value) => [`$${value}`, 'Ingresos']}
+              contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', borderRadius: '8px', color: '#fff', padding: '8px 12px' }}
+              labelStyle={{ color: '#dc2626', fontWeight: 'bold', marginBottom: '4px' }}
+              formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Ingresos']}
+              labelFormatter={(label) => `${label}`}
+              cursor={{ fill: 'rgba(220, 38, 38, 0.1)' }}
             />
             <Bar dataKey="ingresos" fill="#dc2626" radius={[4, 4, 0, 0]} />
           </BarChart>
