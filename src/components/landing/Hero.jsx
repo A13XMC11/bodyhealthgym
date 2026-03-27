@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ChevronDown, Zap } from 'lucide-react'
+import { Zap } from 'lucide-react'
 
 export default function Hero() {
   return (
@@ -26,10 +26,7 @@ export default function Hero() {
 
         <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black text-white leading-none tracking-tight mb-6">
           EL GYM QUE{' '}
-          <span className="text-gym-red relative">
-            ESPERA
-            <span className="absolute -bottom-2 left-0 right-0 h-1 bg-gym-red/50 rounded-full" />
-          </span>{' '}
+          <span className="text-gym-red">ESPERA</span>{' '}
           <br />
           TU MEJOR
           <br />
@@ -45,7 +42,7 @@ export default function Hero() {
             href="#precios"
             className="bg-gym-red hover:bg-gym-red-hover text-white font-bold px-8 py-4 rounded-xl text-lg transition-all hover:scale-105 active:scale-95"
           >
-            ¡Únete Hoy — $30!
+            ¡Únete Hoy!
           </a>
           <a
             href="#servicios"
@@ -70,10 +67,6 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-        <ChevronDown className="w-6 h-6 text-gym-gray" />
-      </div>
     </section>
   )
 }
