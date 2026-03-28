@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
-import { Users, DollarSign, AlertCircle, ClipboardList } from 'lucide-react'
+import { Users, DollarSign, AlertCircle, ClipboardList, AlertTriangle, MessageCircle } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState([])
   const [loading, setLoading] = useState(true)
   const [asistenciasHoy, setAsistenciasHoy] = useState(0)
+  const [expiringMembers, setExpiringMembers] = useState([])
 
   useEffect(() => {
     fetchMetrics()
@@ -24,9 +25,9 @@ export default function Dashboard() {
       const thisMonthEnd = endOfMonth(now).toISOString()
 
       const [clientsRes, paymentsRes, membershipsRes, attendanceRes] = await Promise.all([
-        supabase.from('clients').select('id, nombre, apellido, telefono, estado'),
+        supabase.from('clients').select('id, nombre, apellido, telefono, estado, email'),
         supabase.from('payments').select('monto, fecha_pago').gte('fecha_pago', thisMonthStart).lte('fecha_pago', thisMonthEnd),
-        supabase.from('memberships').select('id, fecha_vencimiento, estado').eq('estado', 'activa'),
+        supabase.from('memberships').select('*, clients(id, nombre, apellido, telefono, email)').eq('estado', 'activa'),
         supabase.from('attendance').select('id').eq('fecha', format(now, 'yyyy-MM-dd')),
       ])
 
@@ -35,13 +36,26 @@ export default function Dashboard() {
 
       const sevenDaysLater = new Date()
       sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
-      const porVencer = (membershipsRes.data || []).filter((m) => {
+      const membershipsData = membershipsRes.data || []
+      const porVencer = membershipsData.filter((m) => {
         const venc = new Date(m.fecha_vencimiento)
         return venc <= sevenDaysLater && venc >= now
       }).length
 
+      // Get expiring members with client info
+      const expiring = membershipsData
+        .filter((m) => {
+          const venc = new Date(m.fecha_vencimiento)
+          return venc <= sevenDaysLater && venc >= now
+        })
+        .map((m) => ({
+          ...m.clients,
+          fecha_vencimiento: m.fecha_vencimiento,
+        }))
+
       setMetrics({ activos, ingresos, pendientes: porVencer, porVencer })
       setAsistenciasHoy((attendanceRes.data || []).length)
+      setExpiringMembers(expiring)
 
       // Chart: last 6 months
       const months = Array.from({ length: 6 }, (_, i) => {
@@ -124,6 +138,49 @@ export default function Dashboard() {
         </ResponsiveContainer>
       </div>
 
+      {/* Alerts Section */}
+      {expiringMembers.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-white font-bold text-lg">⚠️ Membresías Próximas a Vencer</h3>
+
+          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
+              <h4 className="text-yellow-400 font-bold">Membresías Próximas a Vencer en 7 días</h4>
+            </div>
+            <div className="space-y-2">
+              {expiringMembers.map((member) => {
+                const daysLeft = Math.max(0, Math.floor((new Date(member.fecha_vencimiento) - new Date()) / 86400000))
+                const daysText = daysLeft === 0 ? 'hoy' : `en ${daysLeft} días`
+                return (
+                  <div key={member.id} className="bg-gym-black rounded-lg p-3 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-white font-semibold text-sm">
+                        {member.nombre} {member.apellido}
+                      </div>
+                      <div className="text-yellow-400 text-xs mt-0.5">{member.email}</div>
+                      <div className="text-gym-gray text-xs mt-1">Vence {daysText}</div>
+                    </div>
+                    <button
+                      onClick={() =>
+                        sendWhatsApp(
+                          member.telefono,
+                          `Hola ${member.nombre}, tu membresía de Body Health Gym vence ${daysText}. Renueva por $25. ¡Te esperamos!`
+                        )
+                      }
+                      disabled={!member.telefono}
+                      title={member.telefono ? 'Enviar WhatsApp' : 'Agrega el teléfono del cliente para enviar WhatsApp'}
+                      className="p-2 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
