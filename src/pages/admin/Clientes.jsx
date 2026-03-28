@@ -3,12 +3,80 @@ import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useForm, Controller } from 'react-hook-form'
-import ReactPhoneInput from 'react-phone-input-2'
-import 'react-phone-input-2/lib/style.css'
 import toast from 'react-hot-toast'
-import { Plus, Search, UserCheck, UserX, X, CreditCard, ClipboardList, MessageCircle } from 'lucide-react'
+import { Plus, Search, UserCheck, UserX, X, CreditCard, ClipboardList, MessageCircle, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+
+// Country codes for phone input
+const COUNTRY_CODES = [
+  { code: '+593', country: 'Ecuador', flag: '🇪🇨' },
+  { code: '+54', country: 'Argentina', flag: '🇦🇷' },
+  { code: '+56', country: 'Chile', flag: '🇨🇱' },
+  { code: '+57', country: 'Colombia', flag: '🇨🇴' },
+  { code: '+51', country: 'Perú', flag: '🇵🇪' },
+  { code: '+1', country: 'USA', flag: '🇺🇸' },
+  { code: '+34', country: 'España', flag: '🇪🇸' },
+]
+
+// Phone Input Component with Country Code Selector
+function PhoneInputWithCode({ field }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [selectedCode, setSelectedCode] = useState(COUNTRY_CODES[0])
+
+  const phoneNumber = field.value ? field.value.replace(/\D/g, '').replace(selectedCode.code.replace('+', ''), '') : ''
+
+  const handleCodeChange = (newCode) => {
+    setSelectedCode(newCode)
+    const numberOnly = field.value ? field.value.replace(/\D/g, '').replace(selectedCode.code.replace('+', ''), '') : ''
+    field.onChange(`${newCode.code}${numberOnly}`)
+    setIsOpen(false)
+  }
+
+  const handlePhoneChange = (e) => {
+    const numberOnly = e.target.value.replace(/\D/g, '')
+    field.onChange(`${selectedCode.code}${numberOnly}`)
+  }
+
+  return (
+    <div className="relative flex">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 bg-gym-black border border-white/10 rounded-lg rounded-r-none px-3 py-2.5 text-white text-sm hover:border-gym-red/50 transition-colors flex-shrink-0"
+      >
+        <span className="text-base">{selectedCode.flag}</span>
+        <span className="font-semibold">{selectedCode.code}</span>
+        <ChevronDown className="w-3 h-3 text-gym-gray" />
+      </button>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 mt-1 bg-gym-dark border border-white/10 rounded-lg shadow-lg z-10 w-48">
+          {COUNTRY_CODES.map((cc) => (
+            <button
+              key={cc.code}
+              type="button"
+              onClick={() => handleCodeChange(cc)}
+              className="w-full text-left px-4 py-2.5 hover:bg-gym-red/20 text-white text-sm flex items-center gap-2 border-b border-white/5 last:border-b-0 transition-colors"
+            >
+              <span className="text-base">{cc.flag}</span>
+              <span className="font-semibold">{cc.code}</span>
+              <span className="text-gym-gray text-xs ml-auto">{cc.country}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <input
+        type="tel"
+        value={phoneNumber}
+        onChange={handlePhoneChange}
+        className="flex-1 bg-gym-black border border-white/10 rounded-lg rounded-l-none px-3 py-2.5 text-white text-sm focus:outline-none focus:border-gym-red"
+        placeholder="987654321"
+      />
+    </div>
+  )
+}
 
 
 export default function Clientes() {
@@ -387,40 +455,7 @@ export default function Clientes() {
                 <Controller
                   name="telefono"
                   control={control}
-                  render={({ field }) => (
-                    <ReactPhoneInput
-                      {...field}
-                      country={'ec'}
-                      preferredCountries={['ec']}
-                      enableAreaCodeStripping={false}
-                      inputStyle={{
-                        width: '100%',
-                        backgroundColor: '#0a0a0a',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '0.5rem',
-                        padding: '0.625rem 0.75rem',
-                        color: '#ffffff',
-                        fontSize: '0.875rem',
-                        fontFamily: 'inherit'
-                      }}
-                      buttonStyle={{
-                        backgroundColor: '#0a0a0a',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRight: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '0.5rem 0 0 0.5rem'
-                      }}
-                      dropdownStyle={{
-                        backgroundColor: '#0a0a0a',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        color: '#ffffff'
-                      }}
-                      searchStyle={{
-                        backgroundColor: '#0a0a0a',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        color: '#ffffff'
-                      }}
-                    />
-                  )}
+                  render={({ field }) => <PhoneInputWithCode field={field} />}
                 />
               </div>
 
