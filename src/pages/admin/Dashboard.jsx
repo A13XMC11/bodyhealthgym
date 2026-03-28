@@ -99,68 +99,71 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header */}
       <div>
-        <h2 className="text-2xl font-black text-white">Dashboard</h2>
-        <p className="text-gym-gray text-sm mt-1">Resumen del gimnasio</p>
+        <h2 className="text-xl sm:text-2xl font-black text-white">Dashboard</h2>
+        <p className="text-gym-gray text-xs sm:text-sm mt-1">Resumen del gimnasio</p>
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {cards.map((card) => (
-          <div key={card.label} className="bg-gym-dark border border-white/5 rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-gym-gray text-xs font-semibold uppercase tracking-wider">{card.label}</span>
-              <card.icon className={`w-5 h-5 ${card.color}`} />
+          <div key={card.label} className="bg-gym-dark border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-5">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-gym-gray text-xs font-semibold uppercase tracking-wider line-clamp-2">{card.label}</span>
+              <card.icon className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${card.color}`} />
             </div>
-            <div className="text-3xl font-black text-white">{card.value}</div>
+            <div className="text-2xl sm:text-3xl font-black text-white truncate">{card.value}</div>
           </div>
         ))}
       </div>
 
       {/* Chart */}
-      <div className="bg-gym-dark border border-white/5 rounded-2xl p-6">
-        <h3 className="text-white font-bold mb-6">Ingresos Últimos 6 Meses</h3>
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-            <XAxis dataKey="mes" tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} />
-            <Tooltip
-              contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', borderRadius: '8px', color: '#fff', padding: '8px 12px' }}
-              labelStyle={{ color: '#dc2626', fontWeight: 'bold', marginBottom: '4px' }}
-              formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Ingresos']}
-              labelFormatter={(label) => `${label}`}
-              cursor={{ fill: 'rgba(220, 38, 38, 0.1)' }}
-            />
-            <Bar dataKey="ingresos" fill="#dc2626" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="bg-gym-dark border border-white/5 rounded-xl sm:rounded-2xl p-3 sm:p-6 overflow-x-auto">
+        <h3 className="text-white font-bold text-sm sm:text-base mb-3 sm:mb-6">Ingresos Últimos 6 Meses</h3>
+        <div className="min-h-[200px] sm:min-h-[250px] w-full">
+          <ResponsiveContainer width="100%" height={typeof window !== 'undefined' && window.innerWidth < 640 ? 200 : 250}>
+            <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+              <XAxis dataKey="mes" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v}`} width={40} />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', borderRadius: '8px', color: '#fff', padding: '8px 12px', fontSize: '12px' }}
+                labelStyle={{ color: '#dc2626', fontWeight: 'bold', marginBottom: '4px' }}
+                formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Ingresos']}
+                labelFormatter={(label) => `${label}`}
+                cursor={{ fill: 'rgba(220, 38, 38, 0.1)' }}
+              />
+              <Bar dataKey="ingresos" fill="#dc2626" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* Alerts Section - Always visible */}
-      <div className="space-y-4">
-        <h3 className="text-white font-bold text-lg">⚠️ Membresías Próximas a Vencer</h3>
+      <div className="space-y-3 sm:space-y-4">
+        <h3 className="text-white font-bold text-base sm:text-lg">⚠️ Membresías Próximas a Vencer</h3>
 
-        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <AlertCircle className="w-5 h-5 text-yellow-400 flex-shrink-0" />
-            <h4 className="text-yellow-400 font-bold">Membresías Próximas a Vencer en 7 días</h4>
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl sm:rounded-2xl p-3 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 flex-shrink-0" />
+            <h4 className="text-yellow-400 font-bold text-sm sm:text-base">Próximas a Vencer (7 días)</h4>
           </div>
           {expiringMembers.length === 0 ? (
-            <p className="text-gym-gray text-sm text-center py-8">Sin membresías próximas a vencer</p>
+            <p className="text-gym-gray text-xs sm:text-sm text-center py-6 sm:py-8">Sin membresías próximas a vencer</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 sm:space-y-2">
               {expiringMembers.map((member) => {
                 const daysLeft = Math.max(0, Math.floor((new Date(member.fecha_vencimiento) - new Date()) / 86400000))
                 const daysText = daysLeft === 0 ? 'hoy' : `en ${daysLeft} días`
                 return (
-                  <div key={member.id} className="bg-gym-black rounded-lg p-3 flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-white font-semibold text-sm">
+                  <div key={member.id} className="bg-gym-black rounded-lg p-2.5 sm:p-3 flex items-center justify-between gap-2 sm:gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-white font-semibold text-xs sm:text-sm truncate">
                         {member.nombre} {member.apellido}
                       </div>
-                      <div className="text-yellow-400 text-xs mt-0.5">{member.email}</div>
+                      <div className="text-yellow-400 text-xs mt-0.5 truncate">{member.email}</div>
                       <div className="text-gym-gray text-xs mt-1">Vence {daysText}</div>
                     </div>
                     <button
@@ -174,7 +177,7 @@ export default function Dashboard() {
                       title={member.telefono ? 'Enviar WhatsApp' : 'Agrega el teléfono del cliente para enviar WhatsApp'}
                       className="p-2 rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                     >
-                      <MessageCircle className="w-4 h-4" />
+                      <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </button>
                   </div>
                 )

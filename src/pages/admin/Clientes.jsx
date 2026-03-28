@@ -192,101 +192,146 @@ export default function Clientes() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-white">Clientes</h2>
-          <p className="text-gym-gray text-sm mt-1">{clients.length} registrados</p>
+          <h2 className="text-xl sm:text-2xl font-black text-white">Clientes</h2>
+          <p className="text-gym-gray text-xs sm:text-sm mt-1">{clients.length} registrados</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-gym-red hover:bg-gym-red-hover text-white font-bold px-5 py-2.5 rounded-xl transition-colors"
+          className="flex items-center justify-center sm:justify-start gap-2 bg-gym-red hover:bg-gym-red-hover text-white font-bold px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base"
         >
-          <Plus className="w-4 h-4" />
-          Nuevo cliente
+          <Plus className="w-4 h-4 flex-shrink-0" />
+          <span className="hidden sm:inline">Nuevo cliente</span>
+          <span className="sm:hidden">Nuevo</span>
         </button>
       </div>
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gym-gray" />
+        <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gym-gray flex-shrink-0" />
         <input
           type="text"
-          placeholder="Buscar por nombre o correo..."
+          placeholder="Buscar cliente..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-gym-dark border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white placeholder-gym-gray focus:outline-none focus:border-gym-red transition-colors"
+          className="w-full bg-gym-dark border border-white/10 rounded-lg sm:rounded-xl pl-9 sm:pl-11 pr-3 sm:pr-4 py-2.5 sm:py-3 text-white text-sm placeholder-gym-gray focus:outline-none focus:border-gym-red transition-colors"
         />
       </div>
 
-      {/* Table */}
-      <div className="bg-gym-dark border border-white/5 rounded-2xl overflow-hidden">
+      {/* Desktop Table / Mobile Cards */}
+      <div className="bg-gym-dark border border-white/5 rounded-lg sm:rounded-2xl overflow-hidden">
         {loading ? (
-          <div className="flex justify-center py-12">
+          <div className="flex justify-center py-8 sm:py-12">
             <div className="w-8 h-8 border-4 border-gym-red border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/5">
-                  <th className="text-left px-6 py-4 text-gym-gray text-xs font-semibold uppercase tracking-wider">Cliente</th>
-                  <th className="text-left px-6 py-4 text-gym-gray text-xs font-semibold uppercase tracking-wider">Email</th>
-                  <th className="text-left px-6 py-4 text-gym-gray text-xs font-semibold uppercase tracking-wider">Inscripción</th>
-                  <th className="text-left px-6 py-4 text-gym-gray text-xs font-semibold uppercase tracking-wider">Estado</th>
-                  <th className="text-left px-6 py-4 text-gym-gray text-xs font-semibold uppercase tracking-wider">Membresía</th>
-                  <th className="text-left px-6 py-4 text-gym-gray text-xs font-semibold uppercase tracking-wider">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((client) => {
-                  const membershipStatus = getMembershipStatus(client.id)
-                  return (
-                  <tr
-                    key={client.id}
-                    id={`row-${client.id}`}
-                    className={`border-b border-white/5 hover:bg-white/2 transition-all ${
-                      client.id === highlightId ? 'bg-gym-red/10 outline outline-1 outline-gym-red/50' : ''
-                    }`}
-                  >
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-white text-sm">{client.nombre} {client.apellido}</div>
-                    </td>
-                    <td className="px-6 py-4 text-gym-gray text-sm text-xs">{client.email}</td>
-                    <td className="px-6 py-4 text-gym-gray text-xs">
-                      {client.fecha_inscripcion ? format(new Date(client.fecha_inscripcion), 'dd MMM yy', { locale: es }) : '—'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs font-bold px-3 py-1 rounded-full ${client.estado === 'activo' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+          <>
+            {/* Desktop Table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    <th className="text-left px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs font-semibold uppercase tracking-wider">Cliente</th>
+                    <th className="text-left px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs font-semibold uppercase tracking-wider">Email</th>
+                    <th className="text-left px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs font-semibold uppercase tracking-wider">Inscripción</th>
+                    <th className="text-left px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs font-semibold uppercase tracking-wider">Estado</th>
+                    <th className="text-left px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs font-semibold uppercase tracking-wider">Membresía</th>
+                    <th className="text-left px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs font-semibold uppercase tracking-wider">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((client) => {
+                    const membershipStatus = getMembershipStatus(client.id)
+                    return (
+                    <tr
+                      key={client.id}
+                      id={`row-${client.id}`}
+                      className={`border-b border-white/5 hover:bg-white/2 transition-all ${
+                        client.id === highlightId ? 'bg-gym-red/10 outline outline-1 outline-gym-red/50' : ''
+                      }`}
+                    >
+                      <td className="px-4 sm:px-6 py-3 sm:py-4">
+                        <div className="font-semibold text-white text-xs sm:text-sm">{client.nombre} {client.apellido}</div>
+                      </td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs sm:text-sm truncate">{client.email}</td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs">
+                        {client.fecha_inscripcion ? format(new Date(client.fecha_inscripcion), 'dd MMM yy', { locale: es }) : '—'}
+                      </td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4">
+                        <span className={`text-xs font-bold px-2 sm:px-3 py-1 rounded-full whitespace-nowrap ${client.estado === 'activo' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                          {client.estado}
+                        </span>
+                      </td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4">
+                        <span className={`text-xs font-bold px-2 sm:px-3 py-1 rounded-full whitespace-nowrap ${membershipStatus.color}`}>
+                          {membershipStatus.label}
+                        </span>
+                      </td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4">
+                        <div className="flex items-center gap-1 sm:gap-2">
+                          <button onClick={() => verPagos(client)} className="p-1.5 text-gym-gray hover:text-white transition-colors" title="Ver pagos">
+                            <CreditCard className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => toggleEstado(client)} className="p-1.5 text-gym-gray hover:text-white transition-colors" title="Cambiar estado">
+                            {client.estado === 'activo' ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    )
+                  })}
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 sm:py-12 text-gym-gray text-sm">No se encontraron clientes</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="sm:hidden space-y-2 p-3">
+              {filtered.map((client) => {
+                const membershipStatus = getMembershipStatus(client.id)
+                return (
+                  <div key={client.id} id={`row-${client.id}`} className={`bg-gym-black rounded-lg p-3 space-y-2 ${client.id === highlightId ? 'border-2 border-gym-red' : 'border border-white/5'}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white font-semibold text-sm truncate">{client.nombre} {client.apellido}</div>
+                        <div className="text-gym-gray text-xs mt-1 truncate">{client.email}</div>
+                      </div>
+                      <span className={`text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap flex-shrink-0 ${client.estado === 'activo' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
                         {client.estado}
                       </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs font-bold px-3 py-1 rounded-full ${membershipStatus.color}`}>
-                        {membershipStatus.label}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => verPagos(client)} className="p-1.5 text-gym-gray hover:text-white transition-colors" title="Ver pagos">
-                          <CreditCard className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => toggleEstado(client)} className="p-1.5 text-gym-gray hover:text-white transition-colors" title="Cambiar estado">
-                          {client.estado === 'activo' ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  )
-                })}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="text-center py-12 text-gym-gray">No se encontraron clientes</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gym-gray">Inscripción</span>
+                      <span className="text-white">{client.fecha_inscripcion ? format(new Date(client.fecha_inscripcion), 'dd MMM yy', { locale: es }) : '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gym-gray">Membresía</span>
+                      <span className={`font-bold px-2 py-0.5 rounded-full ${membershipStatus.color}`}>{membershipStatus.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2 pt-2 border-t border-white/5">
+                      <button onClick={() => verPagos(client)} className="flex-1 p-2 text-xs text-gym-gray hover:text-white hover:bg-white/5 rounded transition-colors flex items-center justify-center gap-1" title="Ver pagos">
+                        <CreditCard className="w-3.5 h-3.5" />
+                        <span>Pagos</span>
+                      </button>
+                      <button onClick={() => toggleEstado(client)} className="flex-1 p-2 text-xs text-gym-gray hover:text-white hover:bg-white/5 rounded transition-colors flex items-center justify-center gap-1" title="Cambiar estado">
+                        {client.estado === 'activo' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                        <span>{client.estado === 'activo' ? 'Desactivar' : 'Activar'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+              {filtered.length === 0 && (
+                <div className="text-center py-8 text-gym-gray text-sm">No se encontraron clientes</div>
+              )}
+            </div>
+          </>
         )}
       </div>
 

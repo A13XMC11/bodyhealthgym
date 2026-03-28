@@ -297,23 +297,24 @@ export default function Reportes() {
   const hasChartData = reportData.chartData.some((d) => d.ingresos > 0)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-white">Reportes</h2>
-          <p className="text-gym-gray text-sm mt-1">Análisis de ingresos e información</p>
+          <h2 className="text-xl sm:text-2xl font-black text-white">Reportes</h2>
+          <p className="text-gym-gray text-xs sm:text-sm mt-1">Análisis de ingresos e información</p>
         </div>
         <button
           onClick={exportPDF}
-          className="flex items-center gap-2 bg-gym-red hover:bg-gym-red-hover text-white font-bold px-5 py-2.5 rounded-xl transition-colors"
+          className="flex items-center justify-center sm:justify-start gap-2 bg-gym-red hover:bg-gym-red-hover text-white font-bold px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base"
         >
-          <FileDown className="w-4 h-4" />
-          Exportar PDF
+          <FileDown className="w-4 h-4 flex-shrink-0" />
+          <span className="hidden sm:inline">Exportar PDF</span>
+          <span className="sm:hidden">PDF</span>
         </button>
       </div>
 
       {/* Tab Bar */}
-      <div className="flex gap-2 bg-gym-dark rounded-xl p-1 w-fit">
+      <div className="flex gap-1 sm:gap-2 bg-gym-dark rounded-lg sm:rounded-xl p-1 overflow-x-auto">
         {[
           ['diario', '📅 Diario'],
           ['semanal', '📊 Semanal'],
@@ -322,7 +323,7 @@ export default function Reportes() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-bold rounded-lg transition-colors ${
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-bold rounded-lg transition-colors whitespace-nowrap flex-shrink-0 ${
               activeTab === tab ? 'bg-gym-red text-white' : 'text-gym-gray hover:text-white'
             }`}
           >
@@ -332,105 +333,105 @@ export default function Reportes() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-gym-dark border border-white/5 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-gym-gray text-xs font-semibold uppercase tracking-wider">
-              Total Ingresos Año {today.getFullYear()}
-            </span>
-            <DollarSign className="w-5 h-5 text-green-400" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4">
+        <div className="bg-gym-dark border border-white/5 rounded-lg sm:rounded-2xl p-2.5 sm:p-5">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <span className="text-gym-gray text-xs font-semibold uppercase tracking-wider line-clamp-2">Año {today.getFullYear()}</span>
+            <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-400 flex-shrink-0" />
           </div>
-          <div className="text-3xl font-black text-white">${reportData.totalIngresosAnual.toFixed(2)}</div>
+          <div className="text-xl sm:text-3xl font-black text-white truncate">${reportData.totalIngresosAnual.toFixed(2)}</div>
         </div>
 
-        <div className="bg-gym-dark border border-white/5 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-gym-dark border border-white/5 rounded-lg sm:rounded-2xl p-2.5 sm:p-5">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
             <span className="text-gym-gray text-xs font-semibold uppercase tracking-wider">Nuevos</span>
-            <Users className="w-5 h-5 text-blue-400" />
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 flex-shrink-0" />
           </div>
-          <div className="text-3xl font-black text-white">{reportData.nuevos}</div>
+          <div className="text-xl sm:text-3xl font-black text-white">{reportData.nuevos}</div>
         </div>
 
-        <div className="bg-gym-dark border border-white/5 rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-3">
+        <div className="bg-gym-dark border border-white/5 rounded-lg sm:rounded-2xl p-2.5 sm:p-5 col-span-2 sm:col-span-1">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
             <span className="text-gym-gray text-xs font-semibold uppercase tracking-wider">Renovaciones</span>
-            <TrendingUp className="w-5 h-5 text-yellow-400" />
+            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400 flex-shrink-0" />
           </div>
-          <div className="text-3xl font-black text-white">{reportData.renovaciones}</div>
+          <div className="text-xl sm:text-3xl font-black text-white">{reportData.renovaciones}</div>
         </div>
       </div>
 
       {/* Chart */}
-      <div className="bg-gym-dark border border-white/5 rounded-2xl p-6">
-        <h3 className="text-white font-bold mb-6">{getChartTitle()}</h3>
+      <div className="bg-gym-dark border border-white/5 rounded-lg sm:rounded-2xl p-3 sm:p-6 overflow-x-auto">
+        <h3 className="text-white font-bold text-sm sm:text-base mb-3 sm:mb-6">{getChartTitle()}</h3>
 
         {hasChartData ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={reportData.chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-              <XAxis
-                dataKey={activeTab === 'mensual' ? 'mes' : 'hora' in reportData.chartData[0] ? 'hora' : 'fecha'}
-                tick={{ fill: '#6b7280', fontSize: 12 }}
-                axisLine={false}
-                tickLine={false}
-                interval={activeTab === 'diario' ? 0 : activeTab === 'semanal' ? 0 : 0}
-              />
-              <YAxis
-                domain={[reportData.yAxisScale.min, reportData.yAxisScale.max]}
-                ticks={Array.from({ length: 6 }, (_, i) => reportData.yAxisScale.min + (i * reportData.yAxisScale.step))}
-                tick={{ fill: '#6b7280', fontSize: 12 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `$${v}`}
-              />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', borderRadius: '8px', color: '#fff' }}
-                formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Ingresos']}
-                labelFormatter={(label) => {
-                  // Usar el label dinámico si existe
-                  const dataPoint = reportData.chartData.find(
-                    (d) => d[activeTab === 'mensual' ? 'mes' : 'hora' in d ? 'hora' : 'fecha'] === label
-                  )
-                  return dataPoint?.label || label
-                }}
-              />
-              <Bar dataKey="ingresos" fill="#dc2626" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="min-h-[200px] sm:min-h-[300px] w-full">
+            <ResponsiveContainer width="100%" height={typeof window !== 'undefined' && window.innerWidth < 640 ? 200 : 300}>
+              <BarChart data={reportData.chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+                <XAxis
+                  dataKey={activeTab === 'mensual' ? 'mes' : 'hora' in reportData.chartData[0] ? 'hora' : 'fecha'}
+                  tick={{ fill: '#6b7280', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={activeTab === 'diario' ? 0 : activeTab === 'semanal' ? 0 : 0}
+                />
+                <YAxis
+                  domain={[reportData.yAxisScale.min, reportData.yAxisScale.max]}
+                  ticks={Array.from({ length: 6 }, (_, i) => reportData.yAxisScale.min + (i * reportData.yAxisScale.step))}
+                  tick={{ fill: '#6b7280', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `$${v}`}
+                  width={40}
+                />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
+                  formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Ingresos']}
+                  labelFormatter={(label) => {
+                    const dataPoint = reportData.chartData.find(
+                      (d) => d[activeTab === 'mensual' ? 'mes' : 'hora' in d ? 'hora' : 'fecha'] === label
+                    )
+                    return dataPoint?.label || label
+                  }}
+                />
+                <Bar dataKey="ingresos" fill="#dc2626" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         ) : (
           <EmptyChart label={`Sin ingresos registrados ${activeTab === 'diario' ? 'hoy' : activeTab === 'semanal' ? 'esta semana' : 'este mes'}`} />
         )}
       </div>
 
       {/* By Tipo + Promos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* By Tipo */}
-        <div className="bg-gym-dark border border-white/5 rounded-2xl p-6">
-          <h3 className="text-white font-bold mb-4">Ingresos por Tipo</h3>
-          <div className="space-y-3">
+        <div className="bg-gym-dark border border-white/5 rounded-lg sm:rounded-2xl p-3 sm:p-6">
+          <h3 className="text-white font-bold text-sm sm:text-base mb-3 sm:mb-4">Ingresos por Tipo</h3>
+          <div className="space-y-2 sm:space-y-3">
             {reportData.byTipo.map((item) => (
-              <div key={item.tipo} className="bg-gym-black rounded-lg p-4 flex items-center justify-between">
-                <div>
-                  <div className="text-white text-sm font-semibold">{item.tipo}</div>
-                  <div className="text-gym-gray text-xs mt-0.5">{item.cantidad} registro(s)</div>
+              <div key={item.tipo} className="bg-gym-black rounded-lg p-2.5 sm:p-4 flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <div className="text-white text-xs sm:text-sm font-semibold truncate">{item.tipo}</div>
+                  <div className="text-gym-gray text-xs mt-0.5">{item.cantidad} reg(s)</div>
                 </div>
-                <div className="text-gym-red font-black text-lg">${item.monto.toFixed(2)}</div>
+                <div className="text-gym-red font-black text-sm sm:text-lg flex-shrink-0">${item.monto.toFixed(2)}</div>
               </div>
             ))}
           </div>
         </div>
 
         {/* Promos */}
-        <div className="bg-gym-dark border border-white/5 rounded-2xl p-6">
-          <h3 className="text-white font-bold mb-4">Promociones Utilizadas</h3>
+        <div className="bg-gym-dark border border-white/5 rounded-lg sm:rounded-2xl p-3 sm:p-6">
+          <h3 className="text-white font-bold text-sm sm:text-base mb-3 sm:mb-4">Promociones Utilizadas</h3>
           {reportData.promos.length === 0 ? (
-            <p className="text-gym-gray text-sm text-center py-8">Sin promociones utilizadas</p>
+            <p className="text-gym-gray text-xs sm:text-sm text-center py-6 sm:py-8">Sin promociones utilizadas</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {reportData.promos.map((promo, idx) => (
-                <div key={idx} className="bg-gym-black rounded-lg p-4 flex items-center justify-between">
-                  <div className="text-white text-sm font-semibold">{promo.nombre}</div>
-                  <div className="text-gym-red font-black text-lg">${promo.monto.toFixed(2)}</div>
+                <div key={idx} className="bg-gym-black rounded-lg p-2.5 sm:p-4 flex items-center justify-between gap-2">
+                  <div className="text-white text-xs sm:text-sm font-semibold truncate">{promo.nombre}</div>
+                  <div className="text-gym-red font-black text-sm sm:text-lg flex-shrink-0">${promo.monto.toFixed(2)}</div>
                 </div>
               ))}
             </div>

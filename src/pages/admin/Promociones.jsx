@@ -79,62 +79,63 @@ export default function Promociones() {
   const tipoColors = { '2x1': 'text-blue-400 bg-blue-500/10', porcentaje: 'text-yellow-400 bg-yellow-500/10', precio_fijo: 'text-green-400 bg-green-500/10', combo: 'text-purple-400 bg-purple-500/10' }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-white">Promociones</h2>
-          <p className="text-gym-gray text-sm mt-1">{promos.length} registradas</p>
+          <h2 className="text-xl sm:text-2xl font-black text-white">Promociones</h2>
+          <p className="text-gym-gray text-xs sm:text-sm mt-1">{promos.length} registradas</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-gym-red hover:bg-gym-red-hover text-white font-bold px-5 py-2.5 rounded-xl transition-colors"
+          className="flex items-center justify-center sm:justify-start gap-2 bg-gym-red hover:bg-gym-red-hover text-white font-bold px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base"
         >
-          <Plus className="w-4 h-4" />
-          Nueva promoción
+          <Plus className="w-4 h-4 flex-shrink-0" />
+          <span className="hidden sm:inline">Nueva promoción</span>
+          <span className="sm:hidden">Nueva</span>
         </button>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12">
+        <div className="flex justify-center py-8 sm:py-12">
           <div className="w-8 h-8 border-4 border-gym-red border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {promos.map((promo) => (
-            <div key={promo.id} className={`bg-gym-dark border rounded-2xl p-5 transition-all ${promo.activa ? 'border-white/10' : 'border-white/5 opacity-60'}`}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-gym-red" />
-                  <h3 className="text-white font-bold text-sm">{promo.nombre}</h3>
+            <div key={promo.id} className={`bg-gym-dark border rounded-lg sm:rounded-2xl p-3 sm:p-5 transition-all ${promo.activa ? 'border-white/10' : 'border-white/5 opacity-60'}`}>
+              <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <Tag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gym-red flex-shrink-0" />
+                  <h3 className="text-white font-bold text-xs sm:text-sm truncate">{promo.nombre}</h3>
                 </div>
-                <span className={`text-xs font-bold px-2 py-1 rounded-lg ${tipoColors[promo.tipo]}`}>
+                <span className={`text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap flex-shrink-0 ${tipoColors[promo.tipo]}`}>
                   {tipoLabels[promo.tipo]}
                 </span>
               </div>
-              <p className="text-gym-gray text-xs mb-3 leading-relaxed">{promo.descripcion}</p>
-              <div className="text-gym-red font-black text-xl mb-1">
+              <p className="text-gym-gray text-xs mb-2 sm:mb-3 leading-relaxed line-clamp-2">{promo.descripcion}</p>
+              <div className="text-gym-red font-black text-lg sm:text-xl mb-1">
                 {promo.tipo === 'porcentaje' ? `${promo.valor}% OFF` :
                  promo.tipo === '2x1' ? '2×1' :
                  `$${promo.valor}`}
               </div>
               {promo.fecha_fin && (
-                <p className="text-gym-gray text-xs mb-4">
+                <p className="text-gym-gray text-xs mb-2 sm:mb-4">
                   Hasta: {format(new Date(promo.fecha_fin), "d MMM yyyy", { locale: es })}
                 </p>
               )}
-              <div className="flex items-center gap-2 pt-3 border-t border-white/5">
+              <div className="flex items-center gap-2 pt-2 sm:pt-3 border-t border-white/5">
                 <button onClick={() => openEdit(promo)} className="flex items-center gap-1 text-gym-gray hover:text-white text-xs transition-colors">
-                  <Pencil className="w-3.5 h-3.5" /> Editar
+                  <Pencil className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" /> <span className="hidden sm:inline">Editar</span>
                 </button>
-                <button onClick={() => toggleActiva(promo)} className={`flex items-center gap-1 text-xs transition-colors ml-auto ${promo.activa ? 'text-green-400 hover:text-gym-gray' : 'text-gym-gray hover:text-green-400'}`}>
-                  {promo.activa ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
-                  {promo.activa ? 'Activa' : 'Inactiva'}
+                <button onClick={() => toggleActiva(promo)} className={`flex items-center gap-1 text-xs transition-colors ml-auto flex-shrink-0 ${promo.activa ? 'text-green-400 hover:text-gym-gray' : 'text-gym-gray hover:text-green-400'}`}>
+                  {promo.activa ? <ToggleRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ToggleLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                  <span className="hidden sm:inline">{promo.activa ? 'Activa' : 'Inactiva'}</span>
                 </button>
               </div>
             </div>
           ))}
           {promos.length === 0 && (
-            <div className="col-span-3 text-center py-16 text-gym-gray">
+            <div className="col-span-full text-center py-12 sm:py-16 text-gym-gray text-sm sm:text-base">
               No hay promociones. ¡Crea la primera!
             </div>
           )}

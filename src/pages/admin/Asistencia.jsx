@@ -297,39 +297,39 @@ export default function Asistencia() {
   const alreadyMarked = new Set(todayLog.map((a) => a.client_id))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h2 className="text-2xl font-black text-white">Asistencia</h2>
-        <p className="text-gym-gray text-sm mt-1">Panel de control avanzado de asistencia</p>
+        <h2 className="text-xl sm:text-2xl font-black text-white">Asistencia</h2>
+        <p className="text-gym-gray text-xs sm:text-sm mt-1">Panel de control avanzado de asistencia</p>
       </div>
 
       {/* SECCIÓN 1: REGISTRO ENTRADA/SALIDA */}
-      <div className="bg-gym-dark border border-white/5 rounded-2xl p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-gym-dark border border-white/5 rounded-lg sm:rounded-2xl p-3 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 mb-3 sm:mb-4">
           <div>
-            <h3 className="text-white font-bold text-lg">📱 Registro de Entradas/Salidas</h3>
+            <h3 className="text-white font-bold text-base sm:text-lg">📱 Registro de Entradas/Salidas</h3>
             <p className="text-gym-gray text-xs mt-0.5 capitalize">
-              {format(today, "EEEE, d 'de' MMMM yyyy", { locale: es })}
+              {format(today, "EEEE, d 'de' MMMM", { locale: es })}
             </p>
           </div>
-          <div className="text-sm text-gym-gray font-mono">{format(time, 'HH:mm:ss')}</div>
+          <div className="text-xs sm:text-sm text-gym-gray font-mono bg-gym-black rounded px-3 py-2 w-fit">{format(time, 'HH:mm:ss')}</div>
         </div>
 
-        <div className="mb-4 relative">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-gym-gray" />
+        <div className="mb-3 sm:mb-4 relative">
+          <Search className="absolute left-3 top-2.5 sm:top-3 w-4 h-4 text-gym-gray flex-shrink-0" />
           <input
             type="text"
             placeholder="Buscar cliente..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gym-black border border-white/10 rounded-lg text-white placeholder-gym-gray focus:outline-none focus:border-gym-red"
+            className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-2.5 bg-gym-black border border-white/10 rounded-lg text-white text-sm placeholder-gym-gray focus:outline-none focus:border-gym-red"
           />
         </div>
 
         {filteredClients.length === 0 ? (
-          <p className="text-gym-gray text-center py-8">No hay clientes activos</p>
+          <p className="text-gym-gray text-center py-6 sm:py-8 text-sm">No hay clientes activos</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 max-h-[600px] overflow-y-auto">
             {filteredClients.map((client) => {
               const entry = todayLog.find((a) => a.client_id === client.id)
               const isMarked = alreadyMarked.has(client.id)
@@ -402,22 +402,22 @@ export default function Asistencia() {
       </div>
 
       {/* SECCIÓN 2: CALENDARIO MENSUAL */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-gym-dark border border-white/5 rounded-2xl p-6">
-          <h3 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-gym-red" />
-            Historial Mensual —{' '}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="lg:col-span-2 bg-gym-dark border border-white/5 rounded-lg sm:rounded-2xl p-3 sm:p-6">
+          <h3 className="text-white font-bold text-base sm:text-lg mb-3 sm:mb-4 flex items-center gap-2 flex-wrap">
+            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-gym-red flex-shrink-0" />
+            <span>Historial —</span>
             <span className="text-gym-red capitalize">
-              {format(today, 'MMMM yyyy', { locale: es })}
+              {format(today, 'MMM yyyy', { locale: es })}
             </span>
           </h3>
 
-          <div className="mb-4">
+          <div className="mb-3 sm:mb-4">
             <label className="text-gym-gray text-xs font-semibold uppercase tracking-wider mb-2 block">Filtrar por cliente</label>
             <select
               value={filterClient}
               onChange={(e) => setFilterClient(e.target.value)}
-              className="w-full px-3 py-2 bg-gym-black border border-white/10 rounded-lg text-white focus:outline-none focus:border-gym-red"
+              className="w-full px-3 py-2 text-sm bg-gym-black border border-white/10 rounded-lg text-white focus:outline-none focus:border-gym-red"
             >
               <option value="">Todos</option>
               {clients.map((c) => (
@@ -503,18 +503,18 @@ export default function Asistencia() {
         </div>
 
         {/* SECCIÓN 3: CAPACIDAD */}
-        <div className="bg-gym-dark border border-white/5 rounded-2xl p-6">
-          <h3 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5 text-gym-red" />
+        <div className="bg-gym-dark border border-white/5 rounded-lg sm:rounded-2xl p-3 sm:p-6">
+          <h3 className="text-white font-bold text-base sm:text-lg mb-3 sm:mb-4 flex items-center gap-2">
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-gym-red flex-shrink-0" />
             Capacidad
           </h3>
 
           {/* Configurar capacidad */}
-          <div className="mb-6 p-4 bg-gym-black border border-white/10 rounded-lg">
-            <div className="flex items-center justify-between mb-3">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gym-black border border-white/10 rounded-lg">
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
               <span className="text-gym-gray text-xs font-semibold">Máximo</span>
               {!editingCapacity ? (
-                <button onClick={() => setEditingCapacity(true)} className="text-gym-red hover:text-gym-red-hover text-sm">
+                <button onClick={() => setEditingCapacity(true)} className="text-gym-red hover:text-gym-red-hover text-xs sm:text-sm p-1 -m-1">
                   <Settings className="w-4 h-4" />
                 </button>
               ) : null}

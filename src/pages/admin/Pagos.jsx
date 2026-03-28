@@ -111,85 +111,135 @@ export default function Pagos() {
   const filtrados = filtroTipo ? pagos.filter((p) => p.tipo === filtroTipo) : pagos
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-black text-white">Pagos</h2>
-          <p className="text-gym-gray text-sm mt-1">{pagos.length} registros</p>
+          <h2 className="text-xl sm:text-2xl font-black text-white">Pagos</h2>
+          <p className="text-gym-gray text-xs sm:text-sm mt-1">{pagos.length} registros</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-gym-red hover:bg-gym-red-hover text-white font-bold px-5 py-2.5 rounded-xl transition-colors"
+          className="flex items-center justify-center sm:justify-start gap-2 bg-gym-red hover:bg-gym-red-hover text-white font-bold px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl transition-colors text-sm sm:text-base"
         >
-          <Plus className="w-4 h-4" />
-          Registrar pago
+          <Plus className="w-4 h-4 flex-shrink-0" />
+          <span className="hidden sm:inline">Registrar pago</span>
+          <span className="sm:hidden">Pago</span>
         </button>
       </div>
 
       {/* Filter */}
-      <div className="flex items-center gap-3">
-        <Filter className="w-4 h-4 text-gym-gray" />
-        {['', 'mensual', 'diario', 'inscripcion'].map((tipo) => (
-          <button
-            key={tipo}
-            onClick={() => setFiltroTipo(tipo)}
-            className={`text-sm px-4 py-2 rounded-lg font-medium transition-colors ${filtroTipo === tipo ? 'bg-gym-red text-white' : 'bg-gym-dark text-gym-gray hover:text-white'}`}
-          >
-            {tipo === '' ? 'Todos' : tipo.charAt(0).toUpperCase() + tipo.slice(1)}
-          </button>
-        ))}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2">
+        <Filter className="w-4 h-4 text-gym-gray flex-shrink-0" />
+        <div className="flex gap-2 overflow-x-auto">
+          {['', 'mensual', 'diario', 'inscripcion'].map((tipo) => (
+            <button
+              key={tipo}
+              onClick={() => setFiltroTipo(tipo)}
+              className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-medium transition-colors whitespace-nowrap flex-shrink-0 ${filtroTipo === tipo ? 'bg-gym-red text-white' : 'bg-gym-dark text-gym-gray hover:text-white'}`}
+            >
+              {tipo === '' ? 'Todos' : tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-gym-dark border border-white/5 rounded-2xl overflow-hidden">
+      {/* Desktop Table / Mobile Cards */}
+      <div className="bg-gym-dark border border-white/5 rounded-xl sm:rounded-2xl overflow-hidden">
         {loading ? (
-          <div className="flex justify-center py-12">
+          <div className="flex justify-center py-8 sm:py-12">
             <div className="w-8 h-8 border-4 border-gym-red border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/5">
-                  <th className="text-left px-6 py-4 text-gym-gray text-xs font-semibold uppercase">Cliente</th>
-                  <th className="text-left px-6 py-4 text-gym-gray text-xs font-semibold uppercase">Tipo</th>
-                  <th className="text-left px-6 py-4 text-gym-gray text-xs font-semibold uppercase">Monto</th>
-                  <th className="text-left px-6 py-4 text-gym-gray text-xs font-semibold uppercase">Fecha</th>
-                  <th className="text-left px-6 py-4 text-gym-gray text-xs font-semibold uppercase">Promoción</th>
-                  <th className="text-left px-6 py-4 text-gym-gray text-xs font-semibold uppercase">Notas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtrados.map((pago) => (
-                  <tr key={pago.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
-                    <td className="px-6 py-4 text-white text-sm font-medium">
-                      {pago.clients ? `${pago.clients.nombre} ${pago.clients.apellido}` : '—'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs font-bold px-3 py-1 rounded-full capitalize ${
-                        pago.tipo === 'mensual' ? 'bg-blue-500/10 text-blue-400' :
-                        pago.tipo === 'diario' ? 'bg-purple-500/10 text-purple-400' :
-                        'bg-green-500/10 text-green-400'
-                      }`}>
-                        {pago.tipo}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-gym-red font-black">${Number(pago.monto).toFixed(2)}</td>
-                    <td className="px-6 py-4 text-gym-gray text-sm">
-                      {format(new Date(pago.fecha_pago), 'dd MMM yyyy', { locale: es })}
-                    </td>
-                    <td className="px-6 py-4 text-gym-gray text-sm">
-                      {pago.promotions?.nombre || '—'}
-                    </td>
-                    <td className="px-6 py-4 text-gym-gray text-sm">{pago.notas || '—'}</td>
+          <>
+            {/* Desktop Table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    <th className="text-left px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs font-semibold uppercase">Cliente</th>
+                    <th className="text-left px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs font-semibold uppercase">Tipo</th>
+                    <th className="text-left px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs font-semibold uppercase">Monto</th>
+                    <th className="text-left px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs font-semibold uppercase">Fecha</th>
+                    <th className="text-left px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs font-semibold uppercase">Promoción</th>
+                    <th className="text-left px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs font-semibold uppercase">Notas</th>
                   </tr>
-                ))}
-                {filtrados.length === 0 && (
-                  <tr><td colSpan={6} className="text-center py-12 text-gym-gray">Sin pagos registrados</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {filtrados.map((pago) => (
+                    <tr key={pago.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-white text-xs sm:text-sm font-medium">
+                        {pago.clients ? `${pago.clients.nombre} ${pago.clients.apellido}` : '—'}
+                      </td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4">
+                        <span className={`text-xs font-bold px-2 sm:px-3 py-1 rounded-full capitalize ${
+                          pago.tipo === 'mensual' ? 'bg-blue-500/10 text-blue-400' :
+                          pago.tipo === 'diario' ? 'bg-purple-500/10 text-purple-400' :
+                          'bg-green-500/10 text-green-400'
+                        }`}>
+                          {pago.tipo}
+                        </span>
+                      </td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-gym-red font-black text-sm sm:text-base">${Number(pago.monto).toFixed(2)}</td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs sm:text-sm">
+                        {format(new Date(pago.fecha_pago), 'dd MMM yyyy', { locale: es })}
+                      </td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs sm:text-sm">
+                        {pago.promotions?.nombre || '—'}
+                      </td>
+                      <td className="px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs sm:text-sm">{pago.notas || '—'}</td>
+                    </tr>
+                  ))}
+                  {filtrados.length === 0 && (
+                    <tr><td colSpan={6} className="text-center py-8 sm:py-12 text-gym-gray text-sm">Sin pagos registrados</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="sm:hidden space-y-2 p-3">
+              {filtrados.map((pago) => (
+                <div key={pago.id} className="bg-gym-black rounded-lg p-3 space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-white text-sm font-semibold">
+                        {pago.clients ? `${pago.clients.nombre} ${pago.clients.apellido}` : '—'}
+                      </div>
+                      <div className="text-gym-gray text-xs mt-1">
+                        {format(new Date(pago.fecha_pago), 'dd MMM yyyy', { locale: es })}
+                      </div>
+                    </div>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-full capitalize whitespace-nowrap ml-2 ${
+                      pago.tipo === 'mensual' ? 'bg-blue-500/10 text-blue-400' :
+                      pago.tipo === 'diario' ? 'bg-purple-500/10 text-purple-400' :
+                      'bg-green-500/10 text-green-400'
+                    }`}>
+                      {pago.tipo}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs text-gym-gray">Monto</div>
+                    <div className="text-gym-red font-black">${Number(pago.monto).toFixed(2)}</div>
+                  </div>
+                  {pago.promotions?.nombre && (
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gym-gray">Promoción</div>
+                      <div className="text-xs text-white">{pago.promotions.nombre}</div>
+                    </div>
+                  )}
+                  {pago.notas && (
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs text-gym-gray">Notas</div>
+                      <div className="text-xs text-white">{pago.notas}</div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {filtrados.length === 0 && (
+                <div className="text-center py-8 text-gym-gray text-sm">Sin pagos registrados</div>
+              )}
+            </div>
+          </>
         )}
       </div>
 
