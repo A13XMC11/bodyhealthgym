@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { useAuth } from '../contexts/AuthContext'
 import toast from 'react-hot-toast'
-import { Dumbbell, Eye, EyeOff, FlaskConical } from 'lucide-react'
+import { Dumbbell, Eye, EyeOff } from 'lucide-react'
 
 export default function Login() {
   const { signIn } = useAuth()
@@ -91,20 +91,7 @@ export default function Login() {
           </form>
         </div>
 
-        {/* Demo hint */}
-        <div className="mt-6 bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <FlaskConical className="w-4 h-4 text-yellow-400" />
-            <span className="text-yellow-400 text-xs font-bold">Modo Demo disponible</span>
-          </div>
-          <p className="text-yellow-400/70 text-xs mb-2">Prueba el panel sin configurar Supabase:</p>
-          <div className="space-y-1">
-            <p className="text-xs text-gym-gray font-mono">Email: <span className="text-white">admin@demo.com</span></p>
-            <p className="text-xs text-gym-gray font-mono">Contraseña: <span className="text-white">demo1234</span></p>
-          </div>
-        </div>
-
-        <p className="text-center text-gym-gray text-sm mt-4">
+        <p className="text-center text-gym-gray text-sm mt-6">
           <Link to="/" className="text-gym-red hover:text-white transition-colors">
             ← Volver al sitio
           </Link>

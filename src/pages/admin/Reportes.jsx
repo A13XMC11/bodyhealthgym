@@ -6,12 +6,26 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, startOfYear, endOfYear, eachMonthOfInterval } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { DollarSign, FileDown, Users, TrendingUp, BarChart2 } from 'lucide-react'
-import { demoClients, demoPayments, calculateSmartYScale } from '../../lib/demoData'
+
 
 const today = new Date()
 
+const calculateSmartYScale = (maxValue) => {
+  if (maxValue === 0) return { min: 0, max: 100, step: 10 }
+
+  const magnitude = Math.pow(10, Math.floor(Math.log10(maxValue)))
+  const normalized = maxValue / magnitude
+
+  let step = magnitude
+  if (normalized <= 2) step = magnitude / 5
+  else if (normalized <= 5) step = magnitude / 2
+
+  const max = Math.ceil(maxValue / step) * step
+  return { min: 0, max, step }
+}
+
 export default function Reportes() {
-  const { isDemo } = useAuth()
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('diario')
   const [payments, setPayments] = useState([])
   const [clients, setClients] = useState([])
@@ -19,18 +33,11 @@ export default function Reportes() {
 
   useEffect(() => {
     fetchData()
-  }, [activeTab, isDemo])
+  }, [activeTab])
 
   const fetchData = async () => {
     setLoading(true)
     try {
-      if (isDemo) {
-        setClients(demoClients)
-        setPayments(demoPayments)
-        setLoading(false)
-        return
-      }
-
       const [paymentsRes, clientsRes] = await Promise.all([
         supabase.from('payments').select('*, clients(nombre, apellido)'),
         supabase.from('clients').select('id, nombre, apellido, estado'),

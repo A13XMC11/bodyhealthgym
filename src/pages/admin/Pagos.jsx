@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 import { Plus, X, Filter } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { demoPayments, demoClients, demoPromotions } from '../../lib/demoData'
+
 
 const PRECIOS_BASE = { mensual: 25, diario: 3, inscripcion: 5 }
 
@@ -21,7 +21,7 @@ function calcularMonto(tipo, promo, precioBase) {
 }
 
 export default function Pagos() {
-  const { isDemo } = useAuth()
+  const { user } = useAuth()
   const [pagos, setPagos] = useState([])
   const [clientes, setClientes] = useState([])
   const [promociones, setPromociones] = useState([])
@@ -43,7 +43,7 @@ export default function Pagos() {
 
   useEffect(() => {
     fetchAll()
-  }, [isDemo])
+  }, [user])
 
   useEffect(() => {
     let base = PRECIOS_BASE[tipoWatch] ?? Number(precioDiario) ?? 3
@@ -56,13 +56,6 @@ export default function Pagos() {
 
   const fetchAll = async () => {
     setLoading(true)
-    if (isDemo) {
-      setPagos(demoPayments)
-      setClientes(demoClients.filter((c) => c.estado === 'activo'))
-      setPromociones(demoPromotions.filter((p) => p.activa))
-      setLoading(false)
-      return
-    }
     const [pagosRes, clientesRes, promosRes] = await Promise.all([
       supabase.from('payments').select('*, clients(nombre, apellido), promotions(nombre)').order('fecha_pago', { ascending: false }),
       supabase.from('clients').select('id, nombre, apellido').eq('estado', 'activo'),
@@ -77,12 +70,6 @@ export default function Pagos() {
   const onSubmit = async (formData) => {
     setSaving(true)
     try {
-      if (isDemo) {
-        toast.error('En modo demo no puedes registrar pagos reales. Usa credenciales de Supabase configuradas para eso.')
-        setSaving(false)
-        return
-      }
-
       const promo = promociones.find((p) => p.id === formData.promocion_id)
       let base = PRECIOS_BASE[formData.tipo] ?? 3
       if (formData.tipo === 'diario') base = Number(formData.precio_diario) || 3

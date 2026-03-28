@@ -29,22 +29,11 @@ import {
 } from 'recharts'
 import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, getDay, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import {
-  demoClients,
-  getDemoAttendanceToday,
-  addDemoAttendance,
-  addDemoExit,
-  getDemoAttendanceRange,
-  getDemoAttendanceByDay,
-  getDemoAttendanceByHour,
-  getDemoInactiveClients,
-  getDemoAttendanceCurrentMonthTrend,
-} from '../../lib/demoData'
 
 const today = new Date()
 
 export default function Asistencia() {
-  const { isDemo } = useAuth()
+  const { user } = useAuth()
   const [clients, setClients] = useState([])
   const [todayLog, setTodayLog] = useState([])
   const [monthAttendance, setMonthAttendance] = useState({})
@@ -76,32 +65,16 @@ export default function Asistencia() {
       }
     }, 1000)
     return () => clearInterval(interval)
-  }, [isDemo])
+  }, [user])
 
   useEffect(() => {
     fetchAllData()
-  }, [isDemo])
+  }, [user])
 
   const fetchAllData = async () => {
     setLoading(true)
     try {
-      if (isDemo) {
-        // Clientes activos
-        const activeClients = demoClients.filter((c) => c.estado === 'activo')
-        setClients(activeClients)
-
-        // Entradas de hoy
-        const todayData = getDemoAttendanceToday()
-        setTodayLog(todayData)
-
-        // Historial del mes
-        const monthData = getDemoAttendanceByDay(today.getFullYear(), today.getMonth() + 1)
-        setMonthAttendance(monthData)
-
-        // Calcular todo
-        recalculateMetrics(activeClients, todayData)
-      } else {
-        const [clientsRes, attendanceRes] = await Promise.all([
+      const [clientsRes, attendanceRes] = await Promise.all([
           supabase.from('clients').select('id, nombre, apellido, estado').eq('estado', 'activo'),
           supabase
             .from('attendance')
@@ -131,7 +104,6 @@ export default function Asistencia() {
         setMonthAttendance(grouped)
 
         recalculateMetrics(activeClients, attendanceRes.data || [])
-      }
     } catch (err) {
       toast.error('Error al cargar datos')
       console.error(err)
@@ -142,15 +114,15 @@ export default function Asistencia() {
 
   const recalculateMetrics = (activeClients, todayData) => {
     // Tendencia del mes actual (día 1 hasta hoy)
-    const trend = isDemo ? getDemoAttendanceCurrentMonthTrend() : calculateCurrentMonthTrend()
+    const trend = calculateCurrentMonthTrend()
     setDailyTrend(trend)
 
     // Datos por hora del día de hoy
-    const hourly = isDemo ? getDemoAttendanceByHour(format(today, 'yyyy-MM-dd')) : calculateHourlyData()
+    const hourly = calculateHourlyData()
     setHourlyData(hourly)
 
     // Clientes inactivos
-    const inactive = isDemo ? getDemoInactiveClients(7) : calculateInactiveClients()
+    const inactive = calculateInactiveClients()
     setInactiveClients(inactive)
   }
 
@@ -211,15 +183,6 @@ export default function Asistencia() {
   const marcarEntrada = async (client) => {
     setMarking(client.id)
     try {
-      if (isDemo) {
-        const newRecord = addDemoAttendance(client.id)
-        setTodayLog((prev) => [newRecord, ...prev])
-        toast.success(`✓ ${client.nombre} registrado - Entrada`)
-        recalculateMetrics(clients, [...[newRecord], ...todayLog])
-        setMarking(null)
-        return
-      }
-
       const now = new Date()
       const { data, error } = await supabase
         .from('attendance')
@@ -248,15 +211,6 @@ export default function Asistencia() {
     setMarking(attendanceId)
     try {
       const horaActual = format(time, 'HH:mm')
-
-      if (isDemo) {
-        addDemoExit(attendanceId, horaActual)
-        setTodayLog((prev) => prev.map((r) => (r.id === attendanceId ? { ...r, hora_salida: horaActual } : r)))
-        toast.success(`✓ ${client.nombre} registrado - Salida`)
-        recalculateMetrics(clients, todayLog)
-        setMarking(null)
-        return
-      }
 
       const { error } = await supabase
         .from('attendance')

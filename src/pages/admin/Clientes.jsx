@@ -7,10 +7,10 @@ import toast from 'react-hot-toast'
 import { Plus, Search, UserCheck, UserX, X, CreditCard, ClipboardList } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { demoClients, demoPayments, getMembershipStatus, getDemoAttendanceForClient } from '../../lib/demoData'
+
 
 export default function Clientes() {
-  const { isDemo } = useAuth()
+  const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [clients, setClients] = useState([])
   const [filtered, setFiltered] = useState([])
@@ -26,7 +26,7 @@ export default function Clientes() {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm()
 
-  useEffect(() => { fetchClients() }, [isDemo])
+  useEffect(() => { fetchClients() }, [user])
 
   useEffect(() => {
     const hid = searchParams.get('highlight')
@@ -49,12 +49,6 @@ export default function Clientes() {
 
   const fetchClients = async () => {
     setLoading(true)
-    if (isDemo) {
-      setClients(demoClients)
-      setFiltered(demoClients)
-      setLoading(false)
-      return
-    }
     const { data, error } = await supabase
       .from('clients')
       .select('*')
@@ -67,33 +61,7 @@ export default function Clientes() {
   const onSubmit = async (formData) => {
     setSaving(true)
     try {
-      if (isDemo) {
-        // Demo mode: create a temporary client for simulation
-        const demoClientId = Math.random().toString(36).substr(2, 9)
-        const today = new Date().toISOString().split('T')[0]
-        const newClient = {
-          id: demoClientId,
-          nombre: formData.nombre,
-          apellido: formData.apellido,
-          email: formData.email,
-          telefono: formData.telefono || null,
-          fecha_inscripcion: today,
-          estado: 'activo',
-          foto_url: null,
-        }
-
-        // Add to demo clients array
-        demoClients.push(newClient)
-        setClients([newClient, ...clients])
-        setFiltered([newClient, ...filtered])
-
-        toast.success(`✅ ${formData.nombre} registrado (Demo) — $30 cobrado automáticamente`)
-        reset()
-        setShowModal(false)
-        return
-      }
-
-      // Real mode: Create client
+      // Create client
       const { data: client, error: clientError } = await supabase
         .from('clients')
         .insert({ ...formData, fecha_inscripcion: new Date().toISOString().split('T')[0], estado: 'activo' })
@@ -134,18 +102,6 @@ export default function Clientes() {
   }
 
   const toggleEstado = async (client) => {
-    if (isDemo) {
-      const nuevoEstado = client.estado === 'activo' ? 'inactivo' : 'activo'
-      const updated = demoClients.map((c) =>
-        c.id === client.id ? { ...c, estado: nuevoEstado } : c
-      )
-      setClients(updated)
-      setFiltered(updated.filter((c) =>
-        `${c.nombre} ${c.apellido} ${c.email}`.toLowerCase().includes(search.toLowerCase())
-      ))
-      toast.success(`Cliente ${nuevoEstado === 'activo' ? 'activado' : 'desactivado'}`)
-      return
-    }
     const nuevoEstado = client.estado === 'activo' ? 'inactivo' : 'activo'
     const { error } = await supabase.from('clients').update({ estado: nuevoEstado }).eq('id', client.id)
     if (error) toast.error('Error al actualizar')
@@ -158,13 +114,6 @@ export default function Clientes() {
   const verPagos = async (client) => {
     setShowPagos(client)
     setActiveTab('pagos')
-    if (isDemo) {
-      const clientPagos = demoPayments.filter((p) => p.client_id === client.id)
-      const clientAsistencias = getDemoAttendanceForClient(client.id)
-      setPagos(clientPagos)
-      setAsistencias(clientAsistencias)
-      return
-    }
     const [p, a] = await Promise.all([
       supabase
         .from('payments')
@@ -179,6 +128,13 @@ export default function Clientes() {
     ])
     setPagos(p.data || [])
     setAsistencias(a.data || [])
+  }
+
+  const getMembershipStatus = (clientId) => {
+    return {
+      label: 'Verificar',
+      color: 'bg-gray-500/10 text-gray-400'
+    }
   }
 
   return (

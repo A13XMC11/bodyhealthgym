@@ -6,10 +6,10 @@ import toast from 'react-hot-toast'
 import { Plus, X, Pencil, ToggleLeft, ToggleRight, Tag } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { demoPromotions } from '../../lib/demoData'
+
 
 export default function Promociones() {
-  const { isDemo } = useAuth()
+  const { user } = useAuth()
   const [promos, setPromos] = useState([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -19,15 +19,10 @@ export default function Promociones() {
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm()
   const tipoWatch = watch('tipo')
 
-  useEffect(() => { fetchPromos() }, [isDemo])
+  useEffect(() => { fetchPromos() }, [user])
 
   const fetchPromos = async () => {
     setLoading(true)
-    if (isDemo) {
-      setPromos(demoPromotions)
-      setLoading(false)
-      return
-    }
     const { data } = await supabase.from('promotions').select('*').order('created_at', { ascending: false })
     setPromos(data || [])
     setLoading(false)
@@ -53,11 +48,6 @@ export default function Promociones() {
   const onSubmit = async (formData) => {
     setSaving(true)
     try {
-      if (isDemo) {
-        toast.error('En modo demo no puedes crear o editar promociones reales. Usa credenciales de Supabase configuradas para eso.')
-        setSaving(false)
-        return
-      }
       const payload = { ...formData, valor: Number(formData.valor), activa: true }
       if (editando) {
         const { error } = await supabase.from('promotions').update(payload).eq('id', editando.id)
@@ -77,14 +67,6 @@ export default function Promociones() {
   }
 
   const toggleActiva = async (promo) => {
-    if (isDemo) {
-      const updated = demoPromotions.map((p) =>
-        p.id === promo.id ? { ...p, activa: !p.activa } : p
-      )
-      setPromos(updated)
-      toast.success(promo.activa ? 'Promoción desactivada' : 'Promoción activada')
-      return
-    }
     const { error } = await supabase.from('promotions').update({ activa: !promo.activa }).eq('id', promo.id)
     if (error) toast.error('Error al actualizar')
     else {

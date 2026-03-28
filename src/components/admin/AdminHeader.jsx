@@ -2,12 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { LogOut, User, FlaskConical, Search, X } from 'lucide-react'
+import { LogOut, User, Search, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
-import { demoClients, getMembershipStatus } from '../../lib/demoData'
 
 export default function AdminHeader() {
-  const { user, isDemo, signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
@@ -22,21 +21,7 @@ export default function AdminHeader() {
       return
     }
 
-    if (isDemo) {
-      const q = query.toLowerCase()
-      const filtered = demoClients.filter(
-        (c) =>
-          c.nombre.toLowerCase().includes(q) ||
-          c.apellido.toLowerCase().includes(q) ||
-          c.telefono?.toLowerCase().includes(q) ||
-          c.email?.toLowerCase().includes(q)
-      )
-      setResults(filtered.slice(0, 5))
-      setIsOpen(true)
-      return
-    }
-
-    // Real mode with debounce
+    // Search with debounce
     const timer = setTimeout(async () => {
       try {
         const q = `%${query}%`
@@ -54,7 +39,7 @@ export default function AdminHeader() {
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [query, isDemo])
+  }, [query])
 
   // Outside click detection
   useEffect(() => {
@@ -98,24 +83,10 @@ export default function AdminHeader() {
   }
 
   return (
-    <>
-      {isDemo && (
-        <div className="bg-yellow-500/10 border-b border-yellow-500/30 flex items-center justify-center gap-2 py-2 px-4">
-          <FlaskConical className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-          <span className="text-yellow-400 text-xs font-bold tracking-wide">
-            MODO DEMO — Los datos mostrados son de prueba y no se guardan en ninguna base de datos
-          </span>
-        </div>
-      )}
-      <header className="h-16 bg-gym-dark border-b border-white/5 flex items-center justify-between px-6 gap-6">
-        <div className="flex items-center gap-3">
-          <h1 className="text-white font-semibold text-sm">Panel de Administración</h1>
-          {isDemo && (
-            <span className="bg-yellow-500/20 text-yellow-400 text-xs font-bold px-2.5 py-1 rounded-full border border-yellow-500/30">
-              DEMO
-            </span>
-          )}
-        </div>
+    <header className="h-16 bg-gym-dark border-b border-white/5 flex items-center justify-between px-6 gap-6">
+      <div className="flex items-center gap-3">
+        <h1 className="text-white font-semibold text-sm">Panel de Administración</h1>
+      </div>
 
         {/* Search */}
         <div ref={searchRef} className="relative flex-1 max-w-sm">
@@ -146,28 +117,22 @@ export default function AdminHeader() {
               {results.length === 0 ? (
                 <div className="px-4 py-3 text-gym-gray text-sm">Sin resultados</div>
               ) : (
-                results.map((client) => {
-                  const ms = getMembershipStatus(client.id)
-                  return (
-                    <button
-                      key={client.id}
-                      onClick={() => handleSelect(client)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors text-left border-b border-white/5 last:border-0"
-                    >
-                      <div>
-                        <div className="text-white text-sm font-semibold">
-                          {client.nombre} {client.apellido}
-                        </div>
-                        <div className="text-gym-gray text-xs">
-                          {client.telefono || client.email}
-                        </div>
+                results.map((client) => (
+                  <button
+                    key={client.id}
+                    onClick={() => handleSelect(client)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors text-left border-b border-white/5 last:border-0"
+                  >
+                    <div>
+                      <div className="text-white text-sm font-semibold">
+                        {client.nombre} {client.apellido}
                       </div>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${ms.color}`}>
-                        {ms.label}
-                      </span>
-                    </button>
-                  )
-                })
+                      <div className="text-gym-gray text-xs">
+                        {client.telefono || client.email}
+                      </div>
+                    </div>
+                  </button>
+                ))
               )}
             </div>
           )}
@@ -187,6 +152,5 @@ export default function AdminHeader() {
           </button>
         </div>
       </header>
-    </>
   )
 }
