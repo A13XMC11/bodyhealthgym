@@ -4,8 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { Plus, X, Filter } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { fechaHoy, mesHoy, parseFechaLocal, formatFechaISO, formatearFecha, formatearFechaObj } from '../../lib/dates'
 
 
 const PRECIOS_BASE = { mensual: 25, diario: 3, inscripcion: 5 }
@@ -60,6 +59,20 @@ export default function Pagos() {
     verificarCliente(clientWatch)
   }, [clientWatch])
 
+  // Auto-reset tipo if current selection becomes blocked after client change
+  useEffect(() => {
+    if (!clienteEstado) return
+    const blocked = {
+      mensual: clienteEstado.bloqueoMensual,
+      diario: clienteEstado.bloqueoMensual,
+      inscripcion: clienteEstado.tieneInscripcion,
+    }
+    if (blocked[tipoWatch]) {
+      const first = ['mensual', 'diario', 'inscripcion'].find((t) => !blocked[t])
+      if (first) setValue('tipo', first)
+    }
+  }, [clienteEstado])
+
   const verificarCliente = async (clientId) => {
     setCheckingCliente(true)
     const [mensualRes, inscripcionRes] = await Promise.all([
@@ -85,9 +98,7 @@ export default function Pagos() {
     let fechaRenovacion = null
 
     if (mensualRes.data?.length > 0) {
-      const ultimoMensual = new Date(mensualRes.data[0].fecha_pago)
-      // Normalizar a medianoche para evitar diferencias de hora
-      ultimoMensual.setHours(0, 0, 0, 0)
+      const ultimoMensual = parseFechaLocal(mensualRes.data[0].fecha_pago)
 
       fechaVencimiento = new Date(ultimoMensual)
       fechaVencimiento.setDate(fechaVencimiento.getDate() + 30)
@@ -95,8 +106,7 @@ export default function Pagos() {
       fechaRenovacion = new Date(fechaVencimiento)
       fechaRenovacion.setDate(fechaRenovacion.getDate() - 10)
 
-      const hoy = new Date()
-      hoy.setHours(0, 0, 0, 0)
+      const hoy = parseFechaLocal(fechaHoy())
 
       bloqueoMensual = hoy < fechaRenovacion
     }
@@ -133,31 +143,37 @@ export default function Pagos() {
         setSaving(false)
         return
       }
+      if (clienteEstado?.bloqueoMensual && formData.tipo === 'diario') {
+        const fechaVenc = format(clienteEstado.fechaVencimiento, 'dd MMM yyyy', { locale: es })
+        toast.error(`Este cliente tiene una mensualidad activa hasta el ${fechaVenc}. No requiere pago diario.`)
+        setSaving(false)
+        return
+      }
 
       const promo = promociones.find((p) => p.id === formData.promocion_id)
       let base = PRECIOS_BASE[formData.tipo] ?? 3
       if (formData.tipo === 'diario') base = Number(formData.precio_diario) || 3
       const monto = calcularMonto(formData.tipo, promo, base)
-      const today = new Date().toISOString().split('T')[0]
+      const today = fechaHoy()
 
       await supabase.from('payments').insert({
         client_id: formData.client_id,
         tipo: formData.tipo,
         monto,
         fecha_pago: today,
-        mes_correspondiente: today.substring(0, 7),
+        mes_correspondiente: mesHoy(),
         promocion_id: formData.promocion_id || null,
         notas: formData.notas || null,
       })
 
       if (formData.tipo === 'mensual') {
-        const vencimiento = new Date()
+        const vencimiento = parseFechaLocal(today)
         vencimiento.setMonth(vencimiento.getMonth() + 1)
         await supabase.from('memberships').upsert({
           client_id: formData.client_id,
           tipo: 'mensual',
           fecha_inicio: today,
-          fecha_vencimiento: vencimiento.toISOString().split('T')[0],
+          fecha_vencimiento: formatFechaISO(vencimiento),
           estado: 'activa',
         }, { onConflict: 'client_id' })
       }
@@ -245,7 +261,7 @@ export default function Pagos() {
                       </td>
                       <td className="px-4 sm:px-6 py-3 sm:py-4 text-gym-red font-black text-sm sm:text-base">${Number(pago.monto).toFixed(2)}</td>
                       <td className="px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs sm:text-sm">
-                        {format(new Date(pago.fecha_pago), 'dd MMM yyyy', { locale: es })}
+                        {format(parseFechaLocal(pago.fecha_pago), 'dd MMM yyyy', { locale: es })}
                       </td>
                       <td className="px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs sm:text-sm">
                         {pago.promotions?.nombre || '—'}
@@ -270,7 +286,7 @@ export default function Pagos() {
                         {pago.clients ? `${pago.clients.nombre} ${pago.clients.apellido}` : '—'}
                       </div>
                       <div className="text-gym-gray text-xs mt-1">
-                        {format(new Date(pago.fecha_pago), 'dd MMM yyyy', { locale: es })}
+                        {format(parseFechaLocal(pago.fecha_pago), 'dd MMM yyyy', { locale: es })}
                       </div>
                     </div>
                     <span className={`text-xs font-bold px-2 py-1 rounded-full capitalize whitespace-nowrap ml-2 ${
@@ -361,14 +377,23 @@ export default function Pagos() {
                 <select {...register('tipo')}
                   className="w-full bg-gym-black border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-gym-red">
                   <option value="mensual">Mensual — $25</option>
-                  <option value="diario">Diario</option>
+                  <option value="diario" disabled={clienteEstado?.bloqueoMensual}>
+                    Diario{clienteEstado?.bloqueoMensual ? ' (mensual activo)' : ''}
+                  </option>
                   <option value="inscripcion" disabled={clienteEstado?.tieneInscripcion}>
                     Inscripción — $5{clienteEstado?.tieneInscripcion ? ' (ya pagado)' : ''}
                   </option>
                 </select>
-                {clienteEstado?.tieneInscripcion && (
+                {clienteEstado?.tieneInscripcion && tipoWatch === 'inscripcion' && (
                   <p className="text-gym-gray text-xs mt-1">
                     Este cliente ya tiene inscripción registrada.
+                  </p>
+                )}
+                {clienteEstado?.bloqueoMensual && tipoWatch === 'diario' && (
+                  <p className="text-red-400 text-xs mt-1">
+                    Este cliente tiene una mensualidad activa hasta el{' '}
+                    <span className="font-bold">{format(clienteEstado.fechaVencimiento, 'dd MMM yyyy', { locale: es })}</span>.
+                    {' '}No requiere pago diario.
                   </p>
                 )}
               </div>
@@ -421,6 +446,7 @@ export default function Pagos() {
                   saving ||
                   checkingCliente ||
                   (clienteEstado?.bloqueoMensual && tipoWatch === 'mensual') ||
+                  (clienteEstado?.bloqueoMensual && tipoWatch === 'diario') ||
                   (clienteEstado?.tieneInscripcion && tipoWatch === 'inscripcion')
                 }
                 className="w-full bg-gym-red hover:bg-gym-red-hover disabled:opacity-50 text-white font-bold py-3 rounded-xl btn-interactive"

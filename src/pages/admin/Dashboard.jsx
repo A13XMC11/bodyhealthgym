@@ -5,6 +5,7 @@ import { Users, DollarSign, AlertCircle, ClipboardList, AlertTriangle, MessageCi
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { fechaHoy, parseFechaLocal } from '../../lib/dates'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -20,34 +21,34 @@ export default function Dashboard() {
 
   const fetchMetrics = async () => {
     try {
-      const now = new Date()
+      const now = parseFechaLocal(fechaHoy())
       const thisMonthStart = startOfMonth(now).toISOString()
       const thisMonthEnd = endOfMonth(now).toISOString()
 
       const [clientsRes, paymentsRes, membershipsRes, attendanceRes] = await Promise.all([
         supabase.from('clients').select('id, nombre, apellido, telefono, estado, email'),
         supabase.from('payments').select('id, client_id, monto, fecha_pago, clients(id, nombre, apellido, email)').gte('fecha_pago', thisMonthStart).lte('fecha_pago', thisMonthEnd),
-        supabase.from('memberships').select('id, client_id, fecha_vencimiento').gte('fecha_vencimiento', format(now, 'yyyy-MM-dd')).order('fecha_vencimiento', { ascending: true }),
-        supabase.from('attendance').select('id').eq('fecha', format(now, 'yyyy-MM-dd')),
+        supabase.from('memberships').select('id, client_id, fecha_vencimiento').gte('fecha_vencimiento', fechaHoy()).order('fecha_vencimiento', { ascending: true }),
+        supabase.from('attendance').select('id').eq('fecha', fechaHoy()),
       ])
 
       const activos = (clientsRes.data || []).filter((c) => c.estado === 'activo').length
       const ingresos = (paymentsRes.data || []).reduce((sum, p) => sum + Number(p.monto), 0)
 
-      const sevenDaysLater = new Date()
+      const sevenDaysLater = parseFechaLocal(fechaHoy())
       sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
       const membershipsData = membershipsRes.data || []
       const clientsMap = new Map((clientsRes.data || []).map(c => [c.id, c]))
 
       const porVencer = membershipsData.filter((m) => {
-        const venc = new Date(m.fecha_vencimiento)
+        const venc = parseFechaLocal(m.fecha_vencimiento)
         return venc <= sevenDaysLater && venc >= now
       }).length
 
       // Get expiring members with client info
       const expiring = membershipsData
         .filter((m) => {
-          const venc = new Date(m.fecha_vencimiento)
+          const venc = parseFechaLocal(m.fecha_vencimiento)
           return venc <= sevenDaysLater && venc >= now
         })
         .map((m) => {
@@ -164,7 +165,7 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-2 sm:space-y-2">
               {expiringMembers.map((member) => {
-                const daysLeft = Math.max(0, Math.floor((new Date(member.fecha_vencimiento) - new Date()) / 86400000))
+                const daysLeft = Math.max(0, Math.floor((parseFechaLocal(member.fecha_vencimiento) - parseFechaLocal(fechaHoy())) / 86400000))
                 const daysText = daysLeft === 0 ? 'hoy' : `en ${daysLeft} días`
                 return (
                   <div key={member.id} className="bg-gym-black rounded-lg p-2.5 sm:p-3 flex items-center justify-between gap-2 sm:gap-3">

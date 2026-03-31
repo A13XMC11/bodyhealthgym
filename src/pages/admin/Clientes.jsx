@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -8,6 +8,7 @@ import { Plus, Search, UserCheck, UserX, X, CreditCard, ClipboardList, MessageCi
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { parsePhoneNumberFromString, isValidPhoneNumber } from 'libphonenumber-js'
+import { fechaHoy, mesHoy, parseFechaLocal, formatFechaISO, formatearFecha } from '../../lib/dates'
 
 function countryCodeToFlag(countryCode) {
   return countryCode
@@ -114,10 +115,11 @@ export default function Clientes() {
   const [partialPaymentAmount, setPartialPaymentAmount] = useState('')
   const [loadingPartialPayment, setLoadingPartialPayment] = useState(false)
   const [dupErrors, setDupErrors] = useState({ email: null, telefono: null })
+  const [membershipsMap, setMembershipsMap] = useState({})
 
   const { register, handleSubmit, reset, control, getValues, formState: { errors } } = useForm({
     defaultValues: {
-      fechaInscripcion: new Date().toISOString().split('T')[0]
+      fechaInscripcion: fechaHoy()
     }
   })
 
@@ -144,19 +146,26 @@ export default function Clientes() {
 
   const fetchClients = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('clients')
-      .select('*')
-      .order('fecha_inscripcion', { ascending: false })
-    if (error) toast.error('Error al cargar clientes')
-    else { setClients(data || []); setFiltered(data || []) }
+    const [clientsRes, membershipsRes] = await Promise.all([
+      supabase.from('clients').select('*').order('fecha_inscripcion', { ascending: false }),
+      supabase.from('memberships').select('client_id, fecha_vencimiento, estado').order('fecha_vencimiento', { ascending: false }),
+    ])
+    if (clientsRes.error) toast.error('Error al cargar clientes')
+    else {
+      setClients(clientsRes.data || [])
+      setFiltered(clientsRes.data || [])
+      const map = {}
+      for (const m of membershipsRes.data || []) {
+        if (!map[m.client_id]) map[m.client_id] = m
+      }
+      setMembershipsMap(map)
+    }
     setLoading(false)
   }
 
   const onSubmit = async (formData) => {
     setSaving(true)
     setDupErrors({ email: null, telefono: null })
-    let clienteCreado = null
     try {
       // Verificar duplicados antes de cualquier insert
       const telefonoNorm = formData.telefono ? normalizePhone(formData.telefono) : null
@@ -183,7 +192,7 @@ export default function Clientes() {
 
       const fechaInscripcion = formData.fechaInscripcion?.trim()
         ? formData.fechaInscripcion
-        : new Date().toISOString().split('T')[0]
+        : fechaHoy()
       const tipoPago = formData.tipoPago || 'inscripcion_mensual'
       const descuento = Number(formData.descuento) || 0
 
@@ -230,7 +239,6 @@ export default function Clientes() {
           ? 'Ya existe un cliente registrado con ese correo electrónico.'
           : 'Error al registrar cliente. Verifica los datos.',
       }
-      clienteCreado = client
 
       // 2. Insertar pagos con montos ya descontados
       if (pagosFinales.length > 0) {
@@ -257,13 +265,13 @@ export default function Clientes() {
 
       // 3. Crear membresía si corresponde
       if (tipoPago === 'inscripcion_mensual' || tipoPago === 'solo_mensual') {
-        const vencimiento = new Date(fechaInscripcion)
+        const vencimiento = parseFechaLocal(fechaInscripcion)
         vencimiento.setMonth(vencimiento.getMonth() + 1)
         await supabase.from('memberships').insert({
           client_id: client.id,
           tipo: 'mensual',
           fecha_inicio: fechaInscripcion,
-          fecha_vencimiento: vencimiento.toISOString().split('T')[0],
+          fecha_vencimiento: formatFechaISO(vencimiento),
           estado: 'activa',
         })
       }
@@ -272,7 +280,7 @@ export default function Clientes() {
       await supabase.from('attendance').insert({
         client_id: client.id,
         fecha: fechaInscripcion,
-        hora: '08:00',
+        hora: format(new Date(), 'HH:mm'),
       })
 
       const mensaje = montoFinal > 0
@@ -338,8 +346,8 @@ export default function Clientes() {
         client_id: showPagos.id,
         tipo: 'pago_parcial',
         monto: Number(partialPaymentAmount),
-        fecha_pago: new Date().toISOString().split('T')[0],
-        mes_correspondiente: new Date().toISOString().substring(0, 7),
+        fecha_pago: fechaHoy(),
+        mes_correspondiente: mesHoy(),
         notas: `Pago parcial - $${Number(partialPaymentAmount).toFixed(2)}`
       })
 
@@ -355,10 +363,14 @@ export default function Clientes() {
   }
 
   const getMembershipStatus = (clientId) => {
-    return {
-      label: 'Verificar',
-      color: 'bg-gray-500/10 text-gray-400'
+    const m = membershipsMap[clientId]
+    if (!m) return { label: 'Sin membresía', color: 'bg-gray-500/10 text-gray-400' }
+    const hoy = parseFechaLocal(fechaHoy())
+    const vence = parseFechaLocal(m.fecha_vencimiento)
+    if (vence >= hoy) {
+      return { label: `Activa · ${formatearFecha(m.fecha_vencimiento, 'day')}`, color: 'bg-green-500/10 text-green-400' }
     }
+    return { label: `Vencida · ${formatearFecha(m.fecha_vencimiento, 'day')}`, color: 'bg-red-500/10 text-red-400' }
   }
 
   const sendWhatsApp = (phone, message) => {
@@ -437,7 +449,7 @@ export default function Clientes() {
                       </td>
                       <td className="px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs sm:text-sm truncate">{client.email}</td>
                       <td className="px-4 sm:px-6 py-3 sm:py-4 text-gym-gray text-xs">
-                        {client.fecha_inscripcion ? format(new Date(client.fecha_inscripcion), 'dd MMM yy', { locale: es }) : '—'}
+                        {client.fecha_inscripcion ? formatearFecha(client.fecha_inscripcion, 'short') : '—'}
                       </td>
                       <td className="px-4 sm:px-6 py-3 sm:py-4">
                         <span className={`text-xs font-bold px-2 sm:px-3 py-1 rounded-full whitespace-nowrap ${client.estado === 'activo' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
@@ -488,7 +500,7 @@ export default function Clientes() {
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-gym-gray">Inscripción</span>
-                      <span className="text-white">{client.fecha_inscripcion ? format(new Date(client.fecha_inscripcion), 'dd MMM yy', { locale: es }) : '—'}</span>
+                      <span className="text-white">{client.fecha_inscripcion ? formatearFecha(client.fecha_inscripcion, 'short') : '—'}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-gym-gray">Membresía</span>
@@ -723,7 +735,7 @@ export default function Clientes() {
                         <div>
                           <div className="text-white text-sm font-semibold capitalize">{pago.tipo}</div>
                           <div className="text-gym-gray text-xs mt-0.5">
-                            {format(new Date(pago.fecha_pago), 'dd MMM yyyy', { locale: es })}
+                            {formatearFecha(pago.fecha_pago)}
                             {pago.promotions && <span className="ml-2 text-gym-red">· {pago.promotions.nombre}</span>}
                           </div>
                           {pago.notas && <div className="text-gym-gray text-xs mt-0.5 italic">{pago.notas}</div>}
@@ -770,7 +782,7 @@ export default function Clientes() {
                       <div key={asist.id} className="bg-gym-black border border-white/5 rounded-xl p-4 flex items-center justify-between">
                         <div>
                           <div className="text-white text-sm font-semibold">
-                            {format(new Date(asist.fecha), 'dd MMM yyyy', { locale: es })}
+                            {formatearFecha(asist.fecha)}
                           </div>
                           <div className="text-gym-gray text-xs mt-0.5">{asist.hora}</div>
                         </div>

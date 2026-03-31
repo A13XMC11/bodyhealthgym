@@ -27,10 +27,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, getDay, parseISO } from 'date-fns'
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { fechaHoy, parseFechaLocal } from '../../lib/dates'
 
-const today = new Date()
+const today = parseFechaLocal(fechaHoy())
 
 export default function Asistencia() {
   const { user } = useAuth()
@@ -54,12 +55,12 @@ export default function Asistencia() {
 
   // Timer para actualizar tiempo en tiempo real y detectar cambio de día
   useEffect(() => {
-    let lastDate = format(new Date(), 'yyyy-MM-dd')
+    let lastDate = fechaHoy()
     const interval = setInterval(() => {
       const now = new Date()
       setTime(now)
       // Si cambió el día, recargar datos para reset automático
-      const currentDate = format(now, 'yyyy-MM-dd')
+      const currentDate = fechaHoy()
       if (currentDate !== lastDate) {
         lastDate = currentDate
         fetchAllData()
@@ -83,7 +84,7 @@ export default function Asistencia() {
         supabase
           .from('attendance')
           .select('*, clients(nombre, apellido)')
-          .eq('fecha', format(today, 'yyyy-MM-dd'))
+          .eq('fecha', fechaHoy())
           .order('hora', { ascending: false }),
         supabase
           .from('attendance')
@@ -184,15 +185,13 @@ export default function Asistencia() {
   const calculateInactiveClients = (lastMap) => {
     const warning = []
     const danger = []
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
+    const now = parseFechaLocal(fechaHoy())
 
     clients.forEach((client) => {
       const lastFecha = lastMap?.[client.id]
       if (!lastFecha) return // sin registro: cliente nuevo sin datos aún, omitir
 
-      const lastDate = new Date(lastFecha)
-      lastDate.setHours(0, 0, 0, 0)
+      const lastDate = parseFechaLocal(lastFecha)
       const daysSince = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24))
 
       if (daysSince >= 15) {
@@ -213,7 +212,7 @@ export default function Asistencia() {
         .from('attendance')
         .insert({
           client_id: client.id,
-          fecha: format(now, 'yyyy-MM-dd'),
+          fecha: fechaHoy(),
           hora: format(now, 'HH:mm'),
         })
         .select('*, clients(nombre, apellido)')
