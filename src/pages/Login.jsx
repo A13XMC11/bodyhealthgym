@@ -71,9 +71,9 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gym-gray hover:text-white btn-icon"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gym-gray hover:text-white transition-colors w-5 h-5 flex items-center justify-center"
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="w-4 h-4 flex-shrink-0" /> : <Eye className="w-4 h-4 flex-shrink-0" />}
                 </button>
               </div>
               {errors.password && <p className="text-gym-red text-xs mt-1">{errors.password.message}</p>}
