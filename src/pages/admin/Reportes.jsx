@@ -6,9 +6,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, startOfYear, endOfYear, eachMonthOfInterval } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { DollarSign, FileDown, Users, TrendingUp, BarChart2, Calendar, X } from 'lucide-react'
+import { fechaHoy, parseFechaLocal } from '../../lib/dates'
 
 
-const today = new Date()
+const today = parseFechaLocal(fechaHoy())
 
 const calculateSmartYScale = (maxValue) => {
   if (maxValue === 0) return { min: 0, max: 100, step: 10 }
@@ -35,7 +36,7 @@ export default function Reportes() {
   const [filtroActivo, setFiltroActivo] = useState({ desde: '', hasta: '' })
   const [fechaError, setFechaError] = useState('')
 
-  const todayStr = format(today, 'yyyy-MM-dd')
+  const todayStr = fechaHoy()
 
   useEffect(() => {
     fetchData(filtroActivo.desde, filtroActivo.hasta)
@@ -46,7 +47,7 @@ export default function Reportes() {
     try {
       let paymentsQuery = supabase
         .from('payments')
-        .select('id, client_id, tipo, monto, fecha_pago, notas, clients(id, nombre, apellido, email, telefono), promotions(nombre)')
+        .select('id, client_id, tipo, monto, fecha_pago, notas, created_at, promocion_id, clients(id, nombre, apellido, email, telefono), promotions(nombre)')
 
       if (desde) paymentsQuery = paymentsQuery.gte('fecha_pago', desde)
       if (hasta) paymentsQuery = paymentsQuery.lte('fecha_pago', hasta)
@@ -93,25 +94,27 @@ export default function Reportes() {
     const yearPayments = payments.filter((p) => p.fecha_pago >= yearStart && p.fecha_pago <= yearEnd)
     const totalIngresosAnual = yearPayments.reduce((sum, p) => sum + Number(p.monto), 0)
 
-    // Filtrar pagos según el tab actual
+    // Filtrar pagos según el tab actual — comparar strings YYYY-MM-DD directamente
+    // para evitar el bug UTC donde new Date('2026-04-10') = día anterior en Ecuador
     let filteredPayments = []
-    let rangeStart, rangeEnd
+    let rangeStartStr, rangeEndStr
 
     if (activeTab === 'diario') {
-      rangeStart = startOfDay(today)
-      rangeEnd = endOfDay(today)
+      rangeStartStr = todayStr
+      rangeEndStr = todayStr
     } else if (activeTab === 'semanal') {
-      rangeStart = startOfWeek(today, { weekStartsOn: 1 }) // Lunes
-      rangeEnd = endOfWeek(today, { weekStartsOn: 1 }) // Domingo
+      const weekStart = startOfWeek(today, { weekStartsOn: 1 })
+      const weekEnd = endOfWeek(today, { weekStartsOn: 1 })
+      rangeStartStr = format(weekStart, 'yyyy-MM-dd')
+      rangeEndStr = format(weekEnd, 'yyyy-MM-dd')
     } else {
-      rangeStart = startOfMonth(today)
-      rangeEnd = endOfMonth(today)
+      rangeStartStr = format(startOfMonth(today), 'yyyy-MM-dd')
+      rangeEndStr = format(endOfMonth(today), 'yyyy-MM-dd')
     }
 
-    filteredPayments = payments.filter((p) => {
-      const paymentDate = new Date(p.fecha_pago)
-      return paymentDate >= rangeStart && paymentDate <= rangeEnd
-    })
+    filteredPayments = payments.filter(
+      (p) => p.fecha_pago >= rangeStartStr && p.fecha_pago <= rangeEndStr
+    )
 
     const totalIngresos = filteredPayments.reduce((sum, p) => sum + Number(p.monto), 0)
     const nuevos = filteredPayments.filter((p) => p.tipo === 'inscripcion').length
@@ -130,37 +133,37 @@ export default function Reportes() {
       },
     ]
 
+    // Promociones: solo pagos que tienen promocion_id y la promoción aún existe en la tabla
     const promoMap = {}
-    filteredPayments.forEach((p) => {
-      if (p.promocion_id) {
-        promoMap[p.promocion_id] = (promoMap[p.promocion_id] || 0) + Number(p.monto)
-      }
-    })
-    const promos = Object.entries(promoMap).map(([promoId, monto]) => ({
-      nombre: `Promoción ${promoId}`,
-      monto,
-    }))
+    filteredPayments
+      .filter((p) => p.promocion_id != null && p.promotions != null && p.promotions.nombre)
+      .forEach((p) => {
+        const key = p.promotions.nombre
+        if (!promoMap[key]) promoMap[key] = { nombre: key, veces: 0, monto: 0 }
+        promoMap[key].veces += 1
+        promoMap[key].monto += Number(p.monto)
+      })
+    const promos = Object.values(promoMap)
 
     // Chart data dinámico según tab
     let chartData = []
     let yAxisScale = { min: 0, max: 100, step: 10 }
 
     if (activeTab === 'diario') {
-      // Gráfica por HORAS del día
-      const hours = ['06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00']
-      chartData = hours.map((hour) => {
-        const [hourNum] = hour.split(':').map(Number)
-        const nextHourNum = (hourNum + 2) % 24
-
-        // Pagos en esa franja horaria
+      // Gráfica por HORAS del día usando created_at (timestamp con hora real)
+      const hours = [6, 8, 10, 12, 14, 16, 18, 20, 22]
+      chartData = hours.map((h) => {
+        const nextH = h + 2
         const hourPayments = filteredPayments.filter((p) => {
-          const pDate = new Date(p.fecha_pago)
-          const pHour = pDate.getHours()
-          return pHour >= hourNum && pHour < nextHourNum
+          if (!p.created_at) return false
+          // created_at viene en UTC — convertir a hora Ecuador (UTC-5)
+          const utcDate = new Date(p.created_at)
+          const localHour = (utcDate.getUTCHours() - 5 + 24) % 24
+          return localHour >= h && localHour < nextH
         })
-
         const ingresos = hourPayments.reduce((s, p) => s + Number(p.monto), 0)
-        return { hora: hour, ingresos, label: hour }
+        const label = `${String(h).padStart(2, '0')}:00`
+        return { hora: label, ingresos, label }
       })
 
       const maxIncome = Math.max(...chartData.map((d) => d.ingresos), 0)
@@ -221,8 +224,6 @@ export default function Reportes() {
       promos,
       chartData,
       yAxisScale,
-      rangeStart,
-      rangeEnd,
     }
   }, [payments, activeTab])
 
@@ -248,74 +249,119 @@ export default function Reportes() {
       const { jsPDF } = await import('jspdf')
       const doc = new jsPDF()
       const now = new Date()
-      const title = `Reporte ${activeTab === 'diario' ? 'Diario' : activeTab === 'semanal' ? 'Semanal' : 'Mensual'} — Body Health Gym`
+      const tabLabel = activeTab === 'diario' ? 'Diario' : activeTab === 'semanal' ? 'Semanal' : 'Mensual'
+      const dateStr = `${now.getDate()} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][now.getMonth()]} ${now.getFullYear()}`
 
-      // Title
-      doc.setFontSize(16)
-      doc.text(title, 10, 10)
+      const PAGE_W = 210
+      const MARGIN = 14
+      const COL_W = PAGE_W - MARGIN * 2
+      let y = 18
 
-      // Date
-      doc.setFontSize(10)
-      doc.text(`Generado: ${format(now, 'dd MMM yyyy HH:mm', { locale: es })}`, 10, 18)
+      const drawLine = () => {
+        doc.setDrawColor(220, 38, 38)
+        doc.setLineWidth(0.4)
+        doc.line(MARGIN, y, PAGE_W - MARGIN, y)
+        y += 5
+      }
 
-      // Summary Cards
-      doc.setFontSize(12)
-      doc.text('Resumen', 10, 28)
+      const row = (label, value, bold = false) => {
+        doc.setFontSize(10)
+        doc.setFont('helvetica', bold ? 'bold' : 'normal')
+        doc.setTextColor(60, 60, 60)
+        doc.text(label, MARGIN, y)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(220, 38, 38)
+        doc.text(value, PAGE_W - MARGIN, y, { align: 'right' })
+        doc.setTextColor(60, 60, 60)
+        y += 7
+      }
 
-      const summaryData = [
-        [`Total Ingresos: $${reportData.totalIngresos.toFixed(2)}`],
-        [`Nuevos Clientes: ${reportData.nuevos}`],
-        [`Renovaciones: ${reportData.renovaciones}`],
-      ]
+      const sectionTitle = (title) => {
+        y += 3
+        doc.setFontSize(11)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(30, 30, 30)
+        doc.text(title, MARGIN, y)
+        y += 5
+        drawLine()
+      }
 
-      doc.setFontSize(10)
-      let yPos = 35
-      summaryData.forEach((row) => {
-        doc.text(row[0], 10, yPos)
-        yPos += 7
-      })
-
-      // By Tipo Table
-      yPos += 5
-      doc.setFontSize(12)
-      doc.text('Ingresos por Tipo', 10, yPos)
-      yPos += 7
-
-      doc.setFontSize(9)
-      const tipoTableData = reportData.byTipo.map((item) => [item.tipo, item.cantidad.toString(), `$${item.monto.toFixed(2)}`])
-      doc.autoTable({
-        head: [['Tipo', 'Cantidad', 'Monto']],
-        body: tipoTableData,
-        startY: yPos,
-        theme: 'grid',
-        headStyles: { fillColor: [220, 38, 38], textColor: [255, 255, 255] },
-        bodyStyles: { textColor: [0, 0, 0] },
-      })
-
-      // Promotions Table (if any)
-      if (reportData.promos.length > 0) {
-        yPos = doc.lastAutoTable.finalY + 10
-        doc.setFontSize(12)
-        doc.text('Promociones Utilizadas', 10, yPos)
-        yPos += 7
-
+      const tableHeader = (cols, widths) => {
         doc.setFontSize(9)
-        const promoTableData = reportData.promos.map((p) => [p.nombre, `$${p.monto.toFixed(2)}`])
-        doc.autoTable({
-          head: [['Promoción', 'Monto']],
-          body: promoTableData,
-          startY: yPos,
-          theme: 'grid',
-          headStyles: { fillColor: [220, 38, 38], textColor: [255, 255, 255] },
-          bodyStyles: { textColor: [0, 0, 0] },
+        doc.setFont('helvetica', 'bold')
+        doc.setFillColor(220, 38, 38)
+        doc.rect(MARGIN, y - 4, COL_W, 7, 'F')
+        doc.setTextColor(255, 255, 255)
+        let x = MARGIN + 2
+        cols.forEach((col, i) => {
+          doc.text(col, x, y)
+          x += widths[i]
+        })
+        y += 5
+        doc.setTextColor(60, 60, 60)
+      }
+
+      const tableRow = (cols, widths, shade) => {
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'normal')
+        if (shade) {
+          doc.setFillColor(248, 248, 248)
+          doc.rect(MARGIN, y - 4, COL_W, 7, 'F')
+        }
+        let x = MARGIN + 2
+        cols.forEach((col, i) => {
+          doc.text(String(col), x, y)
+          x += widths[i]
+        })
+        y += 7
+      }
+
+      // ── HEADER ──────────────────────────────────────────
+      doc.setFillColor(220, 38, 38)
+      doc.rect(0, 0, PAGE_W, 12, 'F')
+      doc.setFontSize(13)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(255, 255, 255)
+      doc.text(`Reporte Body Health Gym — ${tabLabel}`, MARGIN, 8)
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      doc.text(`Generado: ${dateStr}`, PAGE_W - MARGIN, 8, { align: 'right' })
+
+      y = 22
+
+      // ── MÉTRICAS ─────────────────────────────────────────
+      sectionTitle('Métricas del Período')
+      row('Total Ingresos', `$${reportData.totalIngresos.toFixed(2)}`, true)
+      row('Nuevos Clientes (inscripciones)', `${reportData.nuevos}`)
+      row('Renovaciones (mensual)', `${reportData.renovaciones}`)
+
+      // ── INGRESOS POR TIPO ────────────────────────────────
+      sectionTitle('Ingresos por Tipo')
+      tableHeader(['Tipo', 'Cantidad', 'Monto'], [80, 50, 52])
+      reportData.byTipo.forEach((item, i) => {
+        tableRow([item.tipo, item.cantidad, `$${item.monto.toFixed(2)}`], [80, 50, 52], i % 2 === 0)
+      })
+
+      // ── PROMOCIONES ──────────────────────────────────────
+      sectionTitle('Promociones Utilizadas')
+      if (reportData.promos.length === 0) {
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'italic')
+        doc.setTextColor(120, 120, 120)
+        doc.text('Sin promociones utilizadas en este período', MARGIN, y)
+        y += 7
+      } else {
+        tableHeader(['Promoción', 'Usos', 'Monto'], [100, 40, 42])
+        reportData.promos.forEach((p, i) => {
+          tableRow([p.nombre, p.veces, `$${p.monto.toFixed(2)}`], [100, 40, 42], i % 2 === 0)
         })
       }
 
-      doc.save(`reporte-${activeTab}-${format(now, 'yyyy-MM-dd-HHmm')}.pdf`)
+      doc.save(`reporte-${activeTab}-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.pdf`)
       toast.success('PDF exportado correctamente')
     } catch (err) {
-      toast.error('Error al exportar PDF')
-      console.error(err)
+      toast.error(`Error al exportar PDF: ${err?.message || err}`)
+      console.error('[PDF]', err)
     }
   }
 
@@ -522,7 +568,10 @@ export default function Reportes() {
             <div className="space-y-2 sm:space-y-3">
               {reportData.promos.map((promo, idx) => (
                 <div key={idx} className="bg-gym-black rounded-lg p-2.5 sm:p-4 flex items-center justify-between gap-2">
-                  <div className="text-white text-xs sm:text-sm font-semibold truncate">{promo.nombre}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-white text-xs sm:text-sm font-semibold truncate">{promo.nombre}</div>
+                    <div className="text-gym-gray text-xs mt-0.5">{promo.veces} uso{promo.veces !== 1 ? 's' : ''}</div>
+                  </div>
                   <div className="text-gym-red font-black text-sm sm:text-lg flex-shrink-0">${promo.monto.toFixed(2)}</div>
                 </div>
               ))}
