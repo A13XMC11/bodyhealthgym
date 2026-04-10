@@ -29,7 +29,7 @@ import {
 } from 'recharts'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { fechaHoy, parseFechaLocal } from '../../lib/dates'
+import { fechaHoy, parseFechaLocal, mesHoy } from '../../lib/dates'
 
 const today = parseFechaLocal(fechaHoy())
 
@@ -116,9 +116,11 @@ export default function Asistencia() {
 
       setLastAttendanceMap(lastMap)
 
-      // Historial del mes
-      const monthStart = startOfMonth(today).toISOString()
-      const monthEnd = endOfMonth(today).toISOString()
+      // Historial del mes — usar strings de fecha para evitar problemas UTC
+      const monthStr = mesHoy()
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+      const monthStart = `${monthStr}-01`
+      const monthEnd = `${monthStr}-${String(daysInMonth).padStart(2, '0')}`
       const { data: monthData } = await supabase
         .from('attendance')
         .select('*, clients(nombre, apellido)')
@@ -132,7 +134,8 @@ export default function Asistencia() {
       })
       setMonthAttendance(grouped)
 
-      recalculateMetrics(activeClients, attendanceRes.data || [], lastMap)
+      // Pasar grouped directamente — el estado aún no se actualizó en este ciclo
+      recalculateMetrics(activeClients, attendanceRes.data || [], lastMap, grouped)
     } catch (err) {
       toast.error('Error al cargar datos')
       if (import.meta.env.DEV) {
@@ -143,8 +146,8 @@ export default function Asistencia() {
     }
   }
 
-  const recalculateMetrics = (activeClients, todayData, lastMap) => {
-    const trend = calculateCurrentMonthTrend()
+  const recalculateMetrics = (activeClients, todayData, lastMap, freshMonthData) => {
+    const trend = calculateCurrentMonthTrend(freshMonthData ?? monthAttendance)
     setDailyTrend(trend)
 
     const hourly = calculateHourlyData()
@@ -154,19 +157,17 @@ export default function Asistencia() {
     setInactiveClients(inactive)
   }
 
-  const calculateCurrentMonthTrend = () => {
-    // Tendencia del mes actual para modo producción (Supabase)
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = now.getMonth()
-    const dayOfMonth = now.getDate()
+  // Recibe el mapa de asistencias del mes como parámetro para evitar leer estado stale.
+  // Muestra TODOS los días del mes (no solo hasta hoy) para que el eje X sea siempre completo.
+  const calculateCurrentMonthTrend = (monthData) => {
+    const year = today.getFullYear()
+    const month = today.getMonth()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
     const trend = []
-
-    for (let d = 1; d <= dayOfMonth; d++) {
-      const date = new Date(year, month, d)
-      const dateStr = format(date, 'yyyy-MM-dd')
-      const dayLabel = format(date, 'd MMM')
-      const count = (monthAttendance[dateStr] || []).length
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+      const dayLabel = format(new Date(year, month, d), 'd MMM')
+      const count = (monthData[dateStr] || []).length
       trend.push({ dia: dayLabel, count })
     }
     return trend
@@ -222,8 +223,16 @@ export default function Asistencia() {
 
       if (error) throw error
 
-      setTodayLog((prev) => [data, ...prev])
-      recalculateMetrics(clients, [data, ...todayLog])
+      const newTodayLog = [data, ...todayLog]
+      setTodayLog(newTodayLog)
+
+      // Actualizar mapa del mes para la gráfica sin esperar re-fetch
+      const fechaEntry = data.fecha ?? fechaHoy()
+      const updatedMonthAttendance = { ...monthAttendance }
+      updatedMonthAttendance[fechaEntry] = [data, ...(updatedMonthAttendance[fechaEntry] || [])]
+      setMonthAttendance(updatedMonthAttendance)
+
+      recalculateMetrics(clients, newTodayLog, lastAttendanceMap, updatedMonthAttendance)
       toast.success(`✓ ${client.nombre} registrado - Entrada`)
     } catch (err) {
       toast.error('Error al marcar entrada')
@@ -696,19 +705,15 @@ export default function Asistencia() {
           <h4 className="text-white font-bold mb-4">
             Asistencia del Mes — {format(today, 'MMMM yyyy', { locale: es }).replace(/^\w/, c => c.toUpperCase())}
           </h4>
-          {dailyTrend.some((d) => d.count > 0) ? (
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={dailyTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-                <XAxis dataKey="dia" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} interval={Math.max(0, Math.floor(dailyTrend.length / 10) - 1)} />
-                <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', borderRadius: '8px', color: '#fff' }} formatter={(value) => [value, 'Asistencias']} />
-                <Line type="monotone" dataKey="count" stroke="#dc2626" strokeWidth={2} dot={{ fill: '#dc2626', r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <EmptyChart label="Sin datos de asistencia este mes" />
-          )}
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={dailyTrend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+              <XAxis dataKey="dia" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} interval={Math.max(0, Math.floor(dailyTrend.length / 10) - 1)} />
+              <YAxis tick={{ fill: '#6b7280', fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #dc2626', borderRadius: '8px', color: '#fff' }} formatter={(value) => [value, 'Asistencias']} />
+              <Line type="monotone" dataKey="count" stroke="#dc2626" strokeWidth={2} dot={{ fill: '#dc2626', r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>

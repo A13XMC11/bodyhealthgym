@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useForm, Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
-import { Plus, Search, UserCheck, UserX, X, CreditCard, ClipboardList, MessageCircle, Calendar } from 'lucide-react'
+import { Plus, Search, UserCheck, UserX, X, CreditCard, ClipboardList, MessageCircle, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { parsePhoneNumberFromString, isValidPhoneNumber } from 'libphonenumber-js'
@@ -98,6 +98,111 @@ function PhoneInputWithCode({ field, error }) {
 }
 
 
+const CAL_MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+const CAL_DOW = ['Do','Lu','Ma','Mi','Ju','Vi','Sa']
+
+function CalendarPicker({ value, onChange, placeholder = 'Seleccionar fecha' }) {
+  const ref = useRef(null)
+  const [open, setOpen] = useState(false)
+  const today = new Date()
+  const selected = value ? parseFechaLocal(value) : null
+  const [viewYear, setViewYear] = useState(selected?.getFullYear() ?? today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(selected?.getMonth() ?? today.getMonth())
+
+  const handleOpen = () => {
+    const base = selected ?? today
+    setViewYear(base.getFullYear())
+    setViewMonth(base.getMonth())
+    setOpen((o) => !o)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1) }
+    else setViewMonth((m) => m - 1)
+  }
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1) }
+    else setViewMonth((m) => m + 1)
+  }
+
+  const firstDow = new Date(viewYear, viewMonth, 1).getDay()
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const cells = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
+
+  const toISO = (d) =>
+    `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+
+  const isSelected = (d) =>
+    d && selected &&
+    selected.getFullYear() === viewYear &&
+    selected.getMonth() === viewMonth &&
+    selected.getDate() === d
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={handleOpen}
+        className="w-full bg-gym-black border border-white/10 rounded-lg px-3 py-2.5 text-sm text-left focus:outline-none focus:border-gym-red flex items-center justify-between gap-2"
+      >
+        <span className={value ? 'text-white' : 'text-gym-gray/60'}>
+          {value ? formatearFecha(value) : placeholder}
+        </span>
+        <CalendarIcon className="w-4 h-4 text-gym-gray flex-shrink-0" />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 bg-gym-dark border border-white/10 rounded-xl shadow-2xl p-3 w-64 left-0">
+          <div className="flex items-center justify-between mb-3">
+            <button type="button" onClick={prevMonth} className="p-1 rounded text-gym-gray hover:text-white hover:bg-white/5">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-white text-sm font-semibold">{CAL_MESES[viewMonth]} {viewYear}</span>
+            <button type="button" onClick={nextMonth} className="p-1 rounded text-gym-gray hover:text-white hover:bg-white/5">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 mb-1">
+            {CAL_DOW.map((d) => (
+              <div key={d} className="text-center text-gym-gray text-xs py-0.5">{d}</div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {cells.map((d, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => { if (d) { onChange(toISO(d)); setOpen(false) } }}
+                className={`aspect-square flex items-center justify-center text-xs rounded-lg transition-colors
+                  ${!d ? '' : isSelected(d) ? 'bg-gym-red text-white font-bold' : 'text-white hover:bg-white/10'}`}
+              >
+                {d ?? ''}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const TOTALES_PAGO = { inscripcion_mensual: 30, solo_mensual: 25, solo_diario: 3, solo_inscripcion: 5, sin_pago: 0 }
+
+function calcularDescuentoPromo(promo, baseTotal) {
+  if (!promo) return 0
+  if (promo.tipo === 'porcentaje') return parseFloat(((baseTotal * promo.valor) / 100).toFixed(2))
+  if (promo.tipo === 'precio_fijo') return parseFloat(Math.max(0, baseTotal - promo.valor).toFixed(2))
+  if (promo.tipo === 'combo') return parseFloat(Math.max(0, baseTotal - promo.valor).toFixed(2))
+  return 0 // 2x1 no aplica descuento en efectivo
+}
+
 export default function Clientes() {
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -116,14 +221,77 @@ export default function Clientes() {
   const [loadingPartialPayment, setLoadingPartialPayment] = useState(false)
   const [dupErrors, setDupErrors] = useState({ email: null, telefono: null })
   const [membershipsMap, setMembershipsMap] = useState({})
+  const [promociones, setPromociones] = useState([])
 
-  const { register, handleSubmit, reset, control, getValues, formState: { errors } } = useForm({
-    defaultValues: {
-      fechaInscripcion: fechaHoy()
-    }
+  const { register, handleSubmit, reset, control, watch, getValues, setValue, formState: { errors } } = useForm({
+    defaultValues: { fechaInscripcion: fechaHoy(), tipoPago: 'inscripcion_mensual', descuento: 0, promocion_id: '' }
   })
 
-  useEffect(() => { fetchClients() }, [user])
+  const fechaInscripcionWatch = watch('fechaInscripcion')
+  const tipoPagoWatch = watch('tipoPago')
+  const descuentoWatch = watch('descuento')
+  const promocionIdWatch = watch('promocion_id')
+
+  const baseTotal = TOTALES_PAGO[tipoPagoWatch] ?? 0
+  const totalFinal = Math.max(0, baseTotal - (Number(descuentoWatch) || 0))
+
+  useEffect(() => {
+    fetchClients()
+    supabase.from('promotions').select('id, nombre, tipo, valor').eq('activa', true)
+      .then(({ data }) => setPromociones(data || []))
+  }, [user])
+
+  // Auto-calcular descuento cuando cambia la promoción o el tipo de pago
+  useEffect(() => {
+    const promo = promociones.find((p) => p.id === promocionIdWatch)
+    const base = TOTALES_PAGO[tipoPagoWatch] ?? 0
+    setValue('descuento', calcularDescuentoPromo(promo, base))
+  }, [promocionIdWatch, tipoPagoWatch, promociones])
+
+  // Fallback sin Realtime: Pagos dispara 'membership-updated' tras un pago mensual exitoso
+  // → re-fetcha solo las membresías y actualiza el map
+  useEffect(() => {
+    const handler = async (e) => {
+      const { client_id, fecha_vencimiento } = e.detail || {}
+      console.log('[Clientes] membership-updated recibido:', { client_id, fecha_vencimiento })
+      if (client_id && fecha_vencimiento) {
+        // Actualización optimista inmediata
+        setMembershipsMap((prev) => ({
+          ...prev,
+          [client_id]: { client_id, fecha_vencimiento, estado: 'activa' },
+        }))
+      }
+      // Refetch completo de membresías como respaldo
+      const { data } = await supabase
+        .from('memberships')
+        .select('client_id, fecha_vencimiento, estado')
+        .order('fecha_vencimiento', { ascending: false })
+      if (data) {
+        const map = {}
+        for (const m of data) { if (!map[m.client_id]) map[m.client_id] = m }
+        setMembershipsMap(map)
+      }
+    }
+    window.addEventListener('membership-updated', handler)
+    return () => window.removeEventListener('membership-updated', handler)
+  }, [])
+
+  // Supabase Realtime (si está habilitado en el proyecto)
+  useEffect(() => {
+    const channel = supabase
+      .channel('memberships-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'memberships' }, (payload) => {
+        const m = payload.new
+        if (m?.client_id) {
+          setMembershipsMap((prev) => ({
+            ...prev,
+            [m.client_id]: { client_id: m.client_id, fecha_vencimiento: m.fecha_vencimiento, estado: m.estado },
+          }))
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   useEffect(() => {
     const hid = searchParams.get('highlight')
@@ -266,7 +434,7 @@ export default function Clientes() {
       // 3. Crear membresía si corresponde
       if (tipoPago === 'inscripcion_mensual' || tipoPago === 'solo_mensual') {
         const vencimiento = parseFechaLocal(fechaInscripcion)
-        vencimiento.setMonth(vencimiento.getMonth() + 1)
+        vencimiento.setDate(vencimiento.getDate() + 30)
         await supabase.from('memberships').insert({
           client_id: client.id,
           tipo: 'mensual',
@@ -612,20 +780,24 @@ export default function Clientes() {
               {/* Registration Date */}
               <div>
                 <label className="block text-gym-gray text-xs mb-1">Fecha de inscripción</label>
-                <Controller
-                  name="fechaInscripcion"
-                  control={control}
-                  render={({ field }) => (
-                    <div className="relative">
-                      <input
-                        {...field}
-                        type="date"
-                        className="w-full bg-gym-black border border-white/10 rounded-lg px-3 py-2.5 pl-10 text-white text-sm focus:outline-none focus:border-gym-red"
-                      />
-                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gym-gray pointer-events-none" />
-                    </div>
-                  )}
+                <CalendarPicker
+                  value={fechaInscripcionWatch || fechaHoy()}
+                  onChange={(v) => setValue('fechaInscripcion', v)}
                 />
+              </div>
+
+              {/* Promoción */}
+              <div>
+                <label className="block text-gym-gray text-xs mb-1">Promoción (opcional)</label>
+                <select
+                  {...register('promocion_id')}
+                  className="w-full bg-gym-black border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-gym-red"
+                >
+                  <option value="">Sin promoción</option>
+                  {promociones.map((p) => (
+                    <option key={p.id} value={p.id}>{p.nombre}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Discount */}
@@ -664,7 +836,11 @@ export default function Clientes() {
                 disabled={saving}
                 className="w-full bg-gym-red hover:bg-gym-red-hover disabled:opacity-50 text-white font-bold py-3 rounded-xl btn-interactive mt-4"
               >
-                {saving ? 'Registrando...' : 'Registrar cliente'}
+                {saving
+                  ? 'Registrando...'
+                  : tipoPagoWatch === 'sin_pago'
+                  ? 'Registrar cliente'
+                  : `Registrar cliente — $${totalFinal.toFixed(2)}`}
               </button>
             </form>
           </div>

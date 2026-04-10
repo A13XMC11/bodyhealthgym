@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tag, Loader } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { fechaHoy, formatearFecha } from '../../lib/dates'
 
 export default function Promociones() {
   const [promos, setPromos] = useState([])
@@ -15,7 +14,7 @@ export default function Promociones() {
           .from('promotions')
           .select('*')
           .eq('activa', true)
-          .gte('fecha_fin', new Date().toISOString().split('T')[0])
+          .gte('fecha_fin', fechaHoy())
           .order('created_at', { ascending: false })
         setPromos(data || [])
       } catch {
@@ -70,7 +69,7 @@ export default function Promociones() {
               <p className="text-gym-gray text-sm mb-4">{promo.descripcion}</p>
               {promo.fecha_fin && (
                 <p className="text-gym-red text-xs font-semibold">
-                  Válido hasta: {format(new Date(promo.fecha_fin), "d 'de' MMMM, yyyy", { locale: es })}
+                  Válido hasta: {formatearFecha(promo.fecha_fin)}
                 </p>
               )}
             </div>

@@ -1,12 +1,131 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
-import { Plus, X, Pencil, ToggleLeft, ToggleRight, Tag } from 'lucide-react'
-import { format } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { Plus, X, Pencil, Trash2, ToggleLeft, ToggleRight, Tag, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react'
+import { formatearFecha, parseFechaLocal } from '../../lib/dates'
 
+
+const MESES_NAV = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+const DOW = ['Do','Lu','Ma','Mi','Ju','Vi','Sa']
+
+function CalendarPicker({ value, onChange, minDate, placeholder = 'Seleccionar fecha' }) {
+  const ref = useRef(null)
+  const [open, setOpen] = useState(false)
+
+  const today = new Date()
+  const selected = value ? parseFechaLocal(value) : null
+  const [viewYear, setViewYear] = useState(selected?.getFullYear() ?? today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(selected?.getMonth() ?? today.getMonth())
+
+  // Sincronizar vista al abrir
+  const handleOpen = () => {
+    const base = selected ?? today
+    setViewYear(base.getFullYear())
+    setViewMonth(base.getMonth())
+    setOpen((o) => !o)
+  }
+
+  // Cerrar al hacer clic fuera
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear((y) => y - 1) }
+    else setViewMonth((m) => m - 1)
+  }
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear((y) => y + 1) }
+    else setViewMonth((m) => m + 1)
+  }
+
+  // Celdas del mes: nulls para días vacíos antes del primero
+  const firstDow = new Date(viewYear, viewMonth, 1).getDay()
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+  const cells = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
+
+  const toISO = (d) =>
+    `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+
+  const isSelected = (d) =>
+    d && selected &&
+    selected.getFullYear() === viewYear &&
+    selected.getMonth() === viewMonth &&
+    selected.getDate() === d
+
+  const isDisabled = (d) => d && minDate && toISO(d) < minDate
+
+  const handleSelect = (d) => {
+    if (!d || isDisabled(d)) return
+    onChange(toISO(d))
+    setOpen(false)
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={handleOpen}
+        className="w-full bg-gym-black border border-white/10 rounded-lg px-3 py-2.5 text-sm text-left focus:outline-none focus:border-gym-red flex items-center justify-between gap-2"
+      >
+        <span className={value ? 'text-white' : 'text-gym-gray/60'}>
+          {value ? formatearFecha(value) : placeholder}
+        </span>
+        <CalendarIcon className="w-4 h-4 text-gym-gray flex-shrink-0" />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1 bg-gym-dark border border-white/10 rounded-xl shadow-2xl p-3 w-64 left-0">
+          {/* Cabecera de navegación */}
+          <div className="flex items-center justify-between mb-3">
+            <button type="button" onClick={prevMonth} className="p-1 rounded text-gym-gray hover:text-white hover:bg-white/5">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <span className="text-white text-sm font-semibold">
+              {MESES_NAV[viewMonth]} {viewYear}
+            </span>
+            <button type="button" onClick={nextMonth} className="p-1 rounded text-gym-gray hover:text-white hover:bg-white/5">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Nombres de días */}
+          <div className="grid grid-cols-7 mb-1">
+            {DOW.map((d) => (
+              <div key={d} className="text-center text-gym-gray text-xs py-0.5">{d}</div>
+            ))}
+          </div>
+
+          {/* Grilla de días */}
+          <div className="grid grid-cols-7 gap-0.5">
+            {cells.map((d, i) => (
+              <button
+                key={i}
+                type="button"
+                disabled={!d || isDisabled(d)}
+                onClick={() => handleSelect(d)}
+                className={`
+                  aspect-square flex items-center justify-center text-xs rounded-lg transition-colors
+                  ${!d ? '' :
+                    isSelected(d) ? 'bg-gym-red text-white font-bold' :
+                    isDisabled(d) ? 'text-white/20 cursor-not-allowed' :
+                    'text-white hover:bg-white/10'}
+                `}
+              >
+                {d ?? ''}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function Promociones() {
   const { user } = useAuth()
@@ -18,6 +137,8 @@ export default function Promociones() {
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm()
   const tipoWatch = watch('tipo')
+  const fechaInicioWatch = watch('fecha_inicio')
+  const fechaFinWatch = watch('fecha_fin')
 
   useEffect(() => { fetchPromos() }, [user])
 
@@ -64,6 +185,18 @@ export default function Promociones() {
       toast.error('Error al guardar promoción')
     }
     setSaving(false)
+  }
+
+  const eliminarPromo = async (promo) => {
+    const confirmar = window.confirm(`¿Estás seguro que deseas eliminar la promoción "${promo.nombre}"? Esta acción no se puede deshacer.`)
+    if (!confirmar) return
+    const { error } = await supabase.from('promotions').delete().eq('id', promo.id)
+    if (error) {
+      toast.error('Error al eliminar promoción')
+    } else {
+      setPromos((prev) => prev.filter((p) => p.id !== promo.id))
+      toast.success('Promoción eliminada')
+    }
   }
 
   const toggleActiva = async (promo) => {
@@ -120,12 +253,15 @@ export default function Promociones() {
               </div>
               {promo.fecha_fin && (
                 <p className="text-gym-gray text-xs mb-2 sm:mb-4">
-                  Hasta: {format(new Date(promo.fecha_fin), "d MMM yyyy", { locale: es })}
+                  Hasta: {formatearFecha(promo.fecha_fin)}
                 </p>
               )}
               <div className="flex items-center gap-2 pt-2 sm:pt-3 border-t border-white/5">
                 <button onClick={() => openEdit(promo)} className="flex items-center gap-1 text-gym-gray hover:text-white text-xs btn-icon">
                   <Pencil className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" /> <span className="hidden sm:inline">Editar</span>
+                </button>
+                <button onClick={() => eliminarPromo(promo)} className="flex items-center gap-1 text-red-500 hover:text-red-400 text-xs btn-icon">
+                  <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" /> <span className="hidden sm:inline">Eliminar</span>
                 </button>
                 <button onClick={() => toggleActiva(promo)} className={`flex items-center gap-1 text-xs btn-icon ml-auto flex-shrink-0 ${promo.activa ? 'text-green-400 hover:text-gym-gray' : 'text-gym-gray hover:text-green-400'}`}>
                   {promo.activa ? <ToggleRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ToggleLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
@@ -187,13 +323,24 @@ export default function Promociones() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-gym-gray text-xs mb-1">Fecha inicio</label>
-                  <input {...register('fecha_inicio')} type="date"
-                    className="w-full bg-gym-black border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-gym-red" />
+                  <CalendarPicker
+                    value={fechaInicioWatch || null}
+                    onChange={(v) => {
+                      setValue('fecha_inicio', v)
+                      // Si fecha_fin quedó antes de la nueva inicio, limpiarla
+                      if (fechaFinWatch && fechaFinWatch < v) setValue('fecha_fin', null)
+                    }}
+                    placeholder="Seleccionar fecha"
+                  />
                 </div>
                 <div>
                   <label className="block text-gym-gray text-xs mb-1">Fecha fin</label>
-                  <input {...register('fecha_fin')} type="date"
-                    className="w-full bg-gym-black border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-gym-red" />
+                  <CalendarPicker
+                    value={fechaFinWatch || null}
+                    onChange={(v) => setValue('fecha_fin', v)}
+                    minDate={fechaInicioWatch || undefined}
+                    placeholder="Seleccionar fecha"
+                  />
                 </div>
               </div>
               <button type="submit" disabled={saving}

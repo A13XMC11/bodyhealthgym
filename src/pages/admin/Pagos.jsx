@@ -49,7 +49,7 @@ export default function Pagos() {
   const montoFinal = Math.max(0, montoCalculado - descuento)
   const descuentoError = descuento > montoCalculado
 
-  useEffect(() => { fetchAll() }, [user])
+  useEffect(() => { fetchAll({ showSpinner: true }) }, [user])
 
   useEffect(() => {
     let base = PRECIOS_BASE[tipoWatch] ?? Number(precioDiario) ?? 3
@@ -121,17 +121,17 @@ export default function Pagos() {
     setCheckingCliente(false)
   }
 
-  const fetchAll = async () => {
-    setLoading(true)
+  const fetchAll = async ({ showSpinner = false } = {}) => {
+    if (showSpinner) setLoading(true)
     const [pagosRes, clientesRes, promosRes] = await Promise.all([
-      supabase.from('payments').select('id, client_id, tipo, monto, fecha_pago, notas, clients(id, nombre, apellido, email, telefono), promotions(nombre)').order('fecha_pago', { ascending: false }),
+      supabase.from('payments').select('id, client_id, tipo, monto, fecha_pago, notas, clients(id, nombre, apellido, email, telefono), promotions(nombre)').order('fecha_pago', { ascending: false }).order('id', { ascending: false }),
       supabase.from('clients').select('id, nombre, apellido').eq('estado', 'activo'),
       supabase.from('promotions').select('id, nombre, tipo, valor, activa').eq('activa', true),
     ])
     setPagos(pagosRes.data || [])
     setClientes(clientesRes.data || [])
     setPromociones(promosRes.data || [])
-    setLoading(false)
+    if (showSpinner) setLoading(false)
   }
 
   const onSubmit = async (formData) => {
@@ -170,35 +170,75 @@ export default function Pagos() {
       const monto = Math.max(0, montoOriginal - desc)
       const today = fechaHoy()
 
-      await supabase.from('payments').insert({
-        client_id: formData.client_id,
-        tipo: formData.tipo,
-        monto,
-        descuento: desc > 0 ? desc : null,
-        fecha_pago: today,
-        mes_correspondiente: mesHoy(),
-        promocion_id: formData.promocion_id || null,
-        notas: formData.notas || null,
-      })
+      // El descuento se refleja en 'notas' — la tabla payments no tiene columna 'descuento'
+      const notasDescuento = desc > 0
+        ? `${formData.tipo.charAt(0).toUpperCase() + formData.tipo.slice(1)} $${montoOriginal.toFixed(2)} — desc. -$${desc.toFixed(2)} → cobra $${monto.toFixed(2)}`
+        : null
+      const notasFinales = [notasDescuento, formData.notas || null].filter(Boolean).join(' | ') || null
+
+      const { data: nuevoPago, error: pagoError } = await supabase
+        .from('payments')
+        .insert({
+          client_id: formData.client_id,
+          tipo: formData.tipo,
+          monto,
+          fecha_pago: today,
+          mes_correspondiente: mesHoy(),
+          promocion_id: formData.promocion_id || null,
+          notas: notasFinales,
+        })
+        .select('id, client_id, tipo, monto, fecha_pago, notas, clients(id, nombre, apellido, email, telefono), promotions(nombre)')
+        .single()
+
+      if (pagoError) throw pagoError
 
       if (formData.tipo === 'mensual') {
         const vencimiento = parseFechaLocal(today)
-        vencimiento.setMonth(vencimiento.getMonth() + 1)
-        await supabase.from('memberships').upsert({
-          client_id: formData.client_id,
-          tipo: 'mensual',
-          fecha_inicio: today,
-          fecha_vencimiento: formatFechaISO(vencimiento),
-          estado: 'activa',
-        }, { onConflict: 'client_id' })
+        vencimiento.setDate(vencimiento.getDate() + 30)
+        const fechaVenc = formatFechaISO(vencimiento)
+
+        console.log('[Pagos] Actualizando membresía:', { client_id: formData.client_id, fecha_vencimiento: fechaVenc })
+
+        // UPDATE primero — más confiable que upsert sin constraint UNIQUE garantizado
+        const { data: updData, error: updError } = await supabase
+          .from('memberships')
+          .update({ fecha_inicio: today, fecha_vencimiento: fechaVenc, estado: 'activa' })
+          .eq('client_id', formData.client_id)
+          .select()
+
+        console.log('[Pagos] UPDATE memberships result:', { data: updData, error: updError })
+
+        if (updError) throw updError
+
+        // Si no había fila previa, INSERT
+        if (!updData || updData.length === 0) {
+          console.log('[Pagos] Sin fila previa → INSERT memberships')
+          const { data: insData, error: insError } = await supabase
+            .from('memberships')
+            .insert({ client_id: formData.client_id, tipo: 'mensual', fecha_inicio: today, fecha_vencimiento: fechaVenc, estado: 'activa' })
+            .select()
+          console.log('[Pagos] INSERT memberships result:', { data: insData, error: insError })
+          if (insError) throw insError
+        }
+
+        // Notificar a Clientes (fallback sin Realtime)
+        window.dispatchEvent(new CustomEvent('membership-updated', {
+          detail: { client_id: formData.client_id, fecha_vencimiento: fechaVenc },
+        }))
       }
+
+      // Insertar el nuevo pago al tope de la tabla inmediatamente (sin spinner)
+      setPagos((prev) => [nuevoPago, ...prev])
 
       toast.success(`Pago registrado — $${monto.toFixed(2)}${desc > 0 ? ` (desc. $${desc.toFixed(2)})` : ''}`)
       reset()
       setShowModal(false)
+
+      // Sincronización completa en background (sin bloquear UI)
       fetchAll()
     } catch (err) {
-      toast.error('Error al registrar pago')
+      console.error('[Pagos] Error al registrar pago:', err)
+      toast.error(`Error al registrar pago${err?.message ? `: ${err.message}` : ''}`)
     }
     setSaving(false)
   }
