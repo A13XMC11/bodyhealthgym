@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useForm, Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
-import { Plus, Search, UserCheck, UserX, X, CreditCard, MessageCircle, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Pencil, Save } from 'lucide-react'
+import { Plus, Search, UserCheck, UserX, X, CreditCard, MessageCircle, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Pencil, Save, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { parsePhoneNumberFromString, isValidPhoneNumber } from 'libphonenumber-js'
@@ -225,6 +225,9 @@ export default function Clientes() {
   const [dupErrors, setDupErrors] = useState({ email: null, telefono: null })
   const [membershipsMap, setMembershipsMap] = useState({})
   const [promociones, setPromociones] = useState([])
+  const [confirmDeleteClient, setConfirmDeleteClient] = useState(null)
+  const [confirmDeletePago, setConfirmDeletePago] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
 
   const { register, handleSubmit, reset, control, watch, getValues, setValue, formState: { errors } } = useForm({
     defaultValues: { fechaInscripcion: fechaHoy(), tipoPago: 'inscripcion_mensual', descuento: 0, promocion_id: '' }
@@ -597,6 +600,91 @@ export default function Clientes() {
     }
   }
 
+  const recalcularMembresiaTrasBorrado = async (clientId) => {
+    const { data } = await supabase
+      .from('payments')
+      .select('fecha_pago')
+      .eq('client_id', clientId)
+      .eq('tipo', 'mensual')
+      .order('fecha_pago', { ascending: false })
+      .limit(1)
+
+    if (data?.length > 0) {
+      const vencimiento = parseFechaLocal(data[0].fecha_pago)
+      vencimiento.setDate(vencimiento.getDate() + 30)
+      const fechaVenc = formatFechaISO(vencimiento)
+      await supabase
+        .from('memberships')
+        .update({ fecha_inicio: data[0].fecha_pago, fecha_vencimiento: fechaVenc, estado: 'activa' })
+        .eq('client_id', clientId)
+      window.dispatchEvent(new CustomEvent('membership-updated', {
+        detail: { client_id: clientId, fecha_vencimiento: fechaVenc },
+      }))
+    } else {
+      await supabase.from('memberships').delete().eq('client_id', clientId)
+      setMembershipsMap((prev) => {
+        const next = { ...prev }
+        delete next[clientId]
+        return next
+      })
+    }
+  }
+
+  const deleteClient = async (client) => {
+    setDeletingId(client.id)
+    try {
+      await supabase.from('payments').delete().eq('client_id', client.id)
+      await supabase.from('memberships').delete().eq('client_id', client.id)
+      await supabase.from('cuotas').delete().eq('client_id', client.id)
+      const { error } = await supabase.from('clients').delete().eq('id', client.id)
+      if (error) throw error
+      toast.success(`Cliente ${client.nombre} ${client.apellido} eliminado`)
+      setConfirmDeleteClient(null)
+      setShowPagos(null)
+      fetchClients()
+    } catch {
+      toast.error('Error al eliminar cliente')
+    }
+    setDeletingId(null)
+  }
+
+  const deletePago = async (pago) => {
+    setDeletingId(pago.id)
+    try {
+      const { error } = await supabase.from('payments').delete().eq('id', pago.id)
+      if (error) throw error
+
+      if (pago.cuota_id) {
+        const { data: sumData } = await supabase
+          .from('payments')
+          .select('monto')
+          .eq('cuota_id', pago.cuota_id)
+        const totalPagado = (sumData || []).reduce((acc, p) => acc + Number(p.monto), 0)
+        const { data: cuota } = await supabase
+          .from('cuotas')
+          .select('monto_total')
+          .eq('id', pago.cuota_id)
+          .single()
+        const nuevoEstado = totalPagado >= (cuota?.monto_total ?? 25) ? 'pagada' : 'pendiente'
+        await supabase
+          .from('cuotas')
+          .update({ monto_pagado: totalPagado, estado: nuevoEstado })
+          .eq('id', pago.cuota_id)
+      }
+
+      if (pago.tipo === 'mensual') {
+        await recalcularMembresiaTrasBorrado(pago.client_id)
+      }
+
+      toast.success('Pago eliminado')
+      setConfirmDeletePago(null)
+      verPagos(showPagos)
+    } catch {
+      toast.error('Error al eliminar pago')
+    }
+    setDeletingId(null)
+  }
+
   const sendWhatsApp = (phone, message) => {
     if (!phone) {
       alert('Este cliente no tiene teléfono registrado')
@@ -694,6 +782,9 @@ export default function Clientes() {
                           <button onClick={(e) => { e.stopPropagation(); toggleEstado(client) }} className="p-1.5 text-gym-gray hover:text-white btn-icon" title="Cambiar estado">
                             {client.estado === 'activo' ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                           </button>
+                          <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteClient(client) }} className="p-1.5 text-gym-gray hover:text-red-400 btn-icon" title="Eliminar cliente">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -739,6 +830,9 @@ export default function Clientes() {
                       <button onClick={(e) => { e.stopPropagation(); toggleEstado(client) }} className="flex-1 p-2 text-xs text-gym-gray hover:text-white hover:bg-white/5 rounded btn-icon flex items-center justify-center gap-1" title="Cambiar estado">
                         {client.estado === 'activo' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
                         <span>{client.estado === 'activo' ? 'Desactivar' : 'Activar'}</span>
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setConfirmDeleteClient(client) }} className="p-2 text-xs text-gym-gray hover:text-red-400 hover:bg-red-500/5 rounded btn-icon flex items-center justify-center" title="Eliminar cliente">
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -1058,6 +1152,14 @@ export default function Clientes() {
                   <Save className="w-4 h-4" />
                   {editSaving ? 'Guardando...' : 'Guardar cambios'}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteClient(showPagos)}
+                  className="w-full flex items-center justify-center gap-2 border border-red-500/30 hover:border-red-500/60 text-red-400 hover:text-red-300 font-semibold py-2.5 rounded-xl transition-colors text-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar cliente
+                </button>
               </form>
             )}
 
@@ -1102,8 +1204,8 @@ export default function Clientes() {
                 ) : (
                   <div className="space-y-3">
                     {pagos.map((pago) => (
-                      <div key={pago.id} className="bg-gym-black border border-white/5 rounded-xl p-4 flex items-center justify-between">
-                        <div>
+                      <div key={pago.id} className="bg-gym-black border border-white/5 rounded-xl p-4 flex items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-white text-sm font-semibold capitalize">{pago.tipo}</span>
                             {pago.cuota_id && (
@@ -1118,7 +1220,16 @@ export default function Clientes() {
                           </div>
                           {pago.notas && <div className="text-gym-gray text-xs mt-0.5 italic">{pago.notas}</div>}
                         </div>
-                        <div className="text-gym-red font-black text-lg">${Number(pago.monto).toFixed(2)}</div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <div className="text-gym-red font-black text-lg">${Number(pago.monto).toFixed(2)}</div>
+                          <button
+                            onClick={() => setConfirmDeletePago(pago)}
+                            className="p-1.5 text-gym-gray hover:text-red-400 btn-icon"
+                            title="Eliminar pago"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1168,6 +1279,92 @@ export default function Clientes() {
             verPagos(showPagos)
           }}
         />
+      )}
+
+      {/* Confirmación: eliminar cliente */}
+      {confirmDeleteClient && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-gym-dark border border-red-500/30 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-500/10 rounded-lg">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <h3 className="text-white font-bold text-base">Eliminar cliente</h3>
+            </div>
+            <p className="text-gym-gray text-sm mb-1">
+              ¿Estás seguro de que quieres eliminar a{' '}
+              <span className="text-white font-semibold">{confirmDeleteClient.nombre} {confirmDeleteClient.apellido}</span>?
+            </p>
+            <p className="text-red-400/80 text-xs mb-6">
+              Se eliminarán también todos sus pagos, membresías y cuotas. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDeleteClient(null)}
+                disabled={deletingId === confirmDeleteClient.id}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 text-gym-gray hover:text-white text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => deleteClient(confirmDeleteClient)}
+                disabled={deletingId === confirmDeleteClient.id}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deletingId === confirmDeleteClient.id ? (
+                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Eliminando...</>
+                ) : (
+                  <><Trash2 className="w-4 h-4" /> Eliminar</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmación: eliminar pago */}
+      {confirmDeletePago && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-gym-dark border border-red-500/30 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-500/10 rounded-lg">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <h3 className="text-white font-bold text-base">Eliminar pago</h3>
+            </div>
+            <p className="text-gym-gray text-sm mb-1">
+              ¿Eliminar el pago de{' '}
+              <span className="text-white font-semibold capitalize">{confirmDeletePago.tipo}</span>{' '}
+              por <span className="text-gym-red font-bold">${Number(confirmDeletePago.monto).toFixed(2)}</span>?
+            </p>
+            {confirmDeletePago.tipo === 'mensual' && (
+              <p className="text-yellow-400/80 text-xs mt-1 mb-4">
+                La membresía se recalculará automáticamente desde el pago mensual anterior.
+              </p>
+            )}
+            <p className="text-red-400/80 text-xs mb-6">Esta acción no se puede deshacer.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDeletePago(null)}
+                disabled={deletingId === confirmDeletePago.id}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 text-gym-gray hover:text-white text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => deletePago(confirmDeletePago)}
+                disabled={deletingId === confirmDeletePago.id}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deletingId === confirmDeletePago.id ? (
+                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Eliminando...</>
+                ) : (
+                  <><Trash2 className="w-4 h-4" /> Eliminar</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
