@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
-import { Plus, X, Filter } from 'lucide-react'
+import { Plus, X, Filter, Clock, Zap } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { fechaHoy, mesHoy, parseFechaLocal, formatFechaISO, formatearFecha, formatearFechaObj } from '../../lib/dates'
@@ -31,6 +31,7 @@ export default function Pagos() {
   const [saving, setSaving] = useState(false)
   const [selectedPromo, setSelectedPromo] = useState(null)
   const [montoCalculado, setMontoCalculado] = useState(0)
+  const [cobrosPendientes, setCobrosPendientes] = useState([])
   const [filtroTipo, setFiltroTipo] = useState('')
   const [clienteEstado, setClienteEstado] = useState(null)
   const [checkingCliente, setCheckingCliente] = useState(false)
@@ -123,14 +124,27 @@ export default function Pagos() {
 
   const fetchAll = async ({ showSpinner = false } = {}) => {
     if (showSpinner) setLoading(true)
-    const [pagosRes, clientesRes, promosRes] = await Promise.all([
+
+    const hoyDate = parseFechaLocal(fechaHoy())
+    const ventanaFin = new Date(hoyDate)
+    ventanaFin.setDate(ventanaFin.getDate() + 10)
+    const ventanaInicio = new Date(hoyDate)
+    ventanaInicio.setDate(ventanaInicio.getDate() - 5) // incluir hasta 5 días vencidos
+
+    const [pagosRes, clientesRes, promosRes, membresíasRes] = await Promise.all([
       supabase.from('payments').select('id, client_id, tipo, monto, fecha_pago, notas, clients(id, nombre, apellido, email, telefono), promotions(nombre)').order('fecha_pago', { ascending: false }).order('id', { ascending: false }),
       supabase.from('clients').select('id, nombre, apellido').eq('estado', 'activo'),
       supabase.from('promotions').select('id, nombre, tipo, valor, activa').eq('activa', true),
+      supabase.from('memberships')
+        .select('client_id, fecha_vencimiento, clients(id, nombre, apellido)')
+        .gte('fecha_vencimiento', formatFechaISO(ventanaInicio))
+        .lte('fecha_vencimiento', formatFechaISO(ventanaFin)),
     ])
+
     setPagos(pagosRes.data || [])
     setClientes(clientesRes.data || [])
     setPromociones(promosRes.data || [])
+    setCobrosPendientes(membresíasRes.data || [])
     if (showSpinner) setLoading(false)
   }
 
@@ -243,6 +257,13 @@ export default function Pagos() {
     setSaving(false)
   }
 
+  const abrirCobroRapido = (clientId) => {
+    reset()
+    setValue('client_id', clientId)
+    setValue('tipo', 'mensual')
+    setShowModal(true)
+  }
+
   const filtrados = filtroTipo ? pagos.filter((p) => p.tipo === filtroTipo) : pagos
 
   return (
@@ -261,6 +282,107 @@ export default function Pagos() {
           <span className="sm:hidden">Pago</span>
         </button>
       </div>
+
+      {/* Cobros pendientes */}
+      {cobrosPendientes.length > 0 && (
+        <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-xl sm:rounded-2xl overflow-hidden">
+          <div className="flex items-center gap-2 px-4 sm:px-6 py-3 border-b border-yellow-500/10">
+            <Clock className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+            <span className="text-yellow-400 font-semibold text-sm">
+              Cobros pendientes ({cobrosPendientes.length})
+            </span>
+            <span className="text-yellow-400/50 text-xs">— membresías por vencer o vencidas</span>
+          </div>
+
+          {/* Desktop */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-yellow-500/10">
+                  <th className="text-left px-6 py-3 text-yellow-400/60 text-xs font-semibold uppercase">Cliente</th>
+                  <th className="text-left px-6 py-3 text-yellow-400/60 text-xs font-semibold uppercase">Vence</th>
+                  <th className="text-left px-6 py-3 text-yellow-400/60 text-xs font-semibold uppercase">Estado</th>
+                  <th className="px-6 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {cobrosPendientes.map((m) => {
+                  const hoy = parseFechaLocal(fechaHoy())
+                  const venc = parseFechaLocal(m.fecha_vencimiento)
+                  const diasRestantes = Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24))
+                  const vencido = diasRestantes < 0
+                  return (
+                    <tr key={m.client_id} className="border-b border-yellow-500/5 hover:bg-yellow-500/5 transition-colors">
+                      <td className="px-6 py-3 text-white text-sm font-medium">
+                        {m.clients ? `${m.clients.nombre} ${m.clients.apellido}` : '—'}
+                      </td>
+                      <td className="px-6 py-3 text-sm">
+                        <span className={vencido ? 'text-red-400' : 'text-yellow-300'}>
+                          {formatearFecha(m.fecha_vencimiento)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3">
+                        {vencido ? (
+                          <span className="text-xs font-bold px-2 py-1 rounded-full bg-red-500/10 text-red-400">
+                            Vencida hace {Math.abs(diasRestantes)}d
+                          </span>
+                        ) : (
+                          <span className="text-xs font-bold px-2 py-1 rounded-full bg-yellow-500/10 text-yellow-400">
+                            Vence en {diasRestantes}d
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-3 text-right">
+                        <button
+                          onClick={() => abrirCobroRapido(m.client_id)}
+                          className="flex items-center gap-1.5 ml-auto bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 font-bold text-xs px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                          <Zap className="w-3 h-3" />
+                          Cobrar
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile */}
+          <div className="sm:hidden space-y-2 p-3">
+            {cobrosPendientes.map((m) => {
+              const hoy = parseFechaLocal(fechaHoy())
+              const venc = parseFechaLocal(m.fecha_vencimiento)
+              const diasRestantes = Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24))
+              const vencido = diasRestantes < 0
+              return (
+                <div key={m.client_id} className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg p-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-white text-sm font-semibold truncate">
+                      {m.clients ? `${m.clients.nombre} ${m.clients.apellido}` : '—'}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-xs ${vencido ? 'text-red-400' : 'text-yellow-300'}`}>
+                        {formatearFecha(m.fecha_vencimiento)}
+                      </span>
+                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${vencido ? 'bg-red-500/10 text-red-400' : 'bg-yellow-500/10 text-yellow-400'}`}>
+                        {vencido ? `Venc. hace ${Math.abs(diasRestantes)}d` : `${diasRestantes}d`}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => abrirCobroRapido(m.client_id)}
+                    className="flex-shrink-0 flex items-center gap-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 font-bold text-xs px-3 py-2 rounded-lg transition-colors"
+                  >
+                    <Zap className="w-3 h-3" />
+                    Cobrar
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Filter */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2">

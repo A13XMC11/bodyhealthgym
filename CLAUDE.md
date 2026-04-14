@@ -351,6 +351,15 @@ See `VERCEL_DEPLOYMENT_GUIDE.md` and `ENV_SETUP_VERCEL.md` for detailed setup.
 - Membership expiration is compared against "today" using `parseFechaLocal(fechaHoy())`
 - Filter logic: `fecha_fin < today` means expired
 
+### Cobros Pendientes (Pending Charges)
+`Pagos.jsx` shows a "Cobros pendientes" section at the top whenever clients are approaching renewal:
+- **Window**: memberships with `fecha_vencimiento` between today − 5 days and today + 10 days
+- **Yellow badge**: "Vence en Nd" — still active but within the 10-day renovation window
+- **Red badge**: "Vencida hace Nd" — already expired (up to 5 days grace shown)
+- **"Cobrar" button**: opens the payment modal pre-filled with the client and `tipo = mensual`
+- **Auto-removes**: once a client pays, their `fecha_vencimiento` jumps +30 days and falls outside the window — no manual state needed
+- The `bloqueoMensual` check in `verificarCliente` uses the same 10-day window, so the modal correctly allows renewal for clients shown here
+
 ### Phone Number Validation
 - Uses libphonenumber-js to validate phone numbers
 - Defaults to Ecuador (+593) for numbers without country code
