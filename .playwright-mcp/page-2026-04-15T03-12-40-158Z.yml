@@ -1,0 +1,237 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e6]:
+      - link "Body Health Gym BODY HEALTH GYM" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - img "Body Health Gym" [ref=e8]
+        - generic [ref=e9]: BODY HEALTH GYM
+      - generic [ref=e10]:
+        - link "Servicios" [ref=e11] [cursor=pointer]:
+          - /url: "#servicios"
+        - link "Precios" [ref=e12] [cursor=pointer]:
+          - /url: "#precios"
+        - link "Promociones" [ref=e13] [cursor=pointer]:
+          - /url: "#promociones"
+        - link "Testimonios" [ref=e14] [cursor=pointer]:
+          - /url: "#testimonios"
+        - link "Contacto" [ref=e15] [cursor=pointer]:
+          - /url: "#contacto"
+      - link "Iniciar Sesión" [ref=e17] [cursor=pointer]:
+        - /url: /login
+  - generic [ref=e22]:
+    - generic [ref=e23]:
+      - img [ref=e24]
+      - text: Transforma tu cuerpo. Transforma tu vida.
+    - heading "EL GYM QUE ESPERA TU MEJOR VERSIÓN" [level=1] [ref=e26]:
+      - text: EL GYM QUE ESPERA
+      - text: TU MEJOR
+      - text: VERSIÓN
+    - paragraph [ref=e27]: Equipamiento de primera, entrenadores certificados y un ambiente que te impulsa a superar tus límites cada día.
+    - generic [ref=e28]:
+      - link "¡Únete Hoy!" [ref=e29] [cursor=pointer]:
+        - /url: "#precios"
+      - link "Conoce más" [ref=e30] [cursor=pointer]:
+        - /url: "#servicios"
+    - generic [ref=e31]:
+      - generic [ref=e32]:
+        - generic [ref=e33]: 500+
+        - generic [ref=e34]: Miembros activos
+      - generic [ref=e35]:
+        - generic [ref=e36]: 10+
+        - generic [ref=e37]: Entrenadores
+      - generic [ref=e38]:
+        - generic [ref=e39]: 5★
+        - generic [ref=e40]: Calificación
+  - generic [ref=e42]:
+    - generic [ref=e43]:
+      - text: Lo que ofrecemos
+      - heading "NUESTROS SERVICIOS" [level=2] [ref=e44]
+      - paragraph [ref=e45]: Todo lo que necesitas para alcanzar tu mejor versión, en un solo lugar.
+    - generic [ref=e46]:
+      - generic [ref=e47]:
+        - img [ref=e49]
+        - heading "Musculación" [level=3] [ref=e55]
+        - paragraph [ref=e56]: Equipos de pesas de última generación para sculpting y fuerza.
+      - generic [ref=e57]:
+        - img [ref=e59]
+        - heading "Cardio" [level=3] [ref=e61]
+        - paragraph [ref=e62]: Treadmills, bicicletas y elípticas con pantallas integradas.
+      - generic [ref=e63]:
+        - img [ref=e65]
+        - heading "Clases Grupales" [level=3] [ref=e70]
+        - paragraph [ref=e71]: Zumba, spinning, yoga y más con instructores certificados.
+      - generic [ref=e72]:
+        - img [ref=e74]
+        - heading "Nutrición" [level=3] [ref=e77]
+        - paragraph [ref=e78]: Planes nutricionales personalizados para alcanzar tus metas.
+      - generic [ref=e79]:
+        - img [ref=e81]
+        - heading "Entrenamiento HIIT" [level=3] [ref=e84]
+        - paragraph [ref=e85]: Quema grasa y gana resistencia con rutinas de alta intensidad.
+      - generic [ref=e86]:
+        - img [ref=e88]
+        - heading "Entrenamiento Personal" [level=3] [ref=e94]
+        - paragraph [ref=e95]: Sesiones 1 a 1 diseñadas exclusivamente para ti.
+  - generic [ref=e97]:
+    - generic [ref=e98]:
+      - text: Sin letra pequeña
+      - heading "PLANES Y PRECIOS" [level=2] [ref=e99]
+      - paragraph [ref=e100]: "Precios transparentes para que te enfoques en lo que importa: entrenar."
+    - generic [ref=e101]:
+      - generic [ref=e102]:
+        - heading "Inscripción" [level=3] [ref=e103]
+        - paragraph [ref=e104]: Acceso y registro inicial al gimnasio.
+        - generic [ref=e105]:
+          - generic [ref=e106]: $5
+          - generic [ref=e107]: pago único
+        - list [ref=e108]:
+          - listitem [ref=e109]:
+            - img [ref=e110]
+            - generic [ref=e112]: Registro en sistema
+          - listitem [ref=e113]:
+            - img [ref=e114]
+            - generic [ref=e116]: Evaluación inicial
+          - listitem [ref=e117]:
+            - img [ref=e118]
+            - generic [ref=e120]: Acceso al área de clientes
+        - link "Registrarme" [ref=e121] [cursor=pointer]:
+          - /url: "#contacto"
+      - generic [ref=e122]:
+        - generic [ref=e123]: POPULAR
+        - heading "Membresía Mensual" [level=3] [ref=e124]
+        - paragraph [ref=e125]: Acceso ilimitado durante 30 días.
+        - generic [ref=e126]:
+          - generic [ref=e127]: $25
+          - generic [ref=e128]: / mes
+        - list [ref=e129]:
+          - listitem [ref=e130]:
+            - img [ref=e131]
+            - generic [ref=e133]: Acceso ilimitado
+          - listitem [ref=e134]:
+            - img [ref=e135]
+            - generic [ref=e137]: Todas las áreas
+          - listitem [ref=e138]:
+            - img [ref=e139]
+            - generic [ref=e141]: Clases grupales incluidas
+          - listitem [ref=e142]:
+            - img [ref=e143]
+            - generic [ref=e145]: Vestuarios y casilleros
+        - link "¡El más popular!" [ref=e146] [cursor=pointer]:
+          - /url: "#contacto"
+      - generic [ref=e147]:
+        - heading "Pack Nuevo Cliente" [level=3] [ref=e148]
+        - paragraph [ref=e149]: Todo incluido para empezar hoy mismo.
+        - generic [ref=e150]:
+          - generic [ref=e151]: $30
+          - generic [ref=e152]: inscripción + 1 mes
+        - list [ref=e153]:
+          - listitem [ref=e154]:
+            - img [ref=e155]
+            - generic [ref=e157]: Inscripción incluida
+          - listitem [ref=e158]:
+            - img [ref=e159]
+            - generic [ref=e161]: Primer mes completo
+          - listitem [ref=e162]:
+            - img [ref=e163]
+            - generic [ref=e165]: Asesoría de bienvenida
+          - listitem [ref=e166]:
+            - img [ref=e167]
+            - generic [ref=e169]: Evaluación física
+        - link "¡Empieza hoy!" [ref=e170] [cursor=pointer]:
+          - /url: "#contacto"
+    - generic [ref=e171]:
+      - generic [ref=e172]:
+        - heading "Pago Diario" [level=4] [ref=e173]
+        - paragraph [ref=e174]: ¿Solo vienes un día? Sin problema. Paga únicamente lo que usas.
+      - link "Consultar precio →" [ref=e175] [cursor=pointer]:
+        - /url: "#contacto"
+  - img [ref=e177]
+  - generic [ref=e187]:
+    - generic [ref=e188]:
+      - text: Lo dicen nuestros miembros
+      - heading "TESTIMONIOS" [level=2] [ref=e189]
+    - generic [ref=e190]:
+      - generic [ref=e191]:
+        - generic [ref=e192]:
+          - generic [ref=e193]: ★
+          - generic [ref=e194]: ★
+          - generic [ref=e195]: ★
+          - generic [ref=e196]: ★
+          - generic [ref=e197]: ★
+        - paragraph [ref=e198]: "\"En 6 meses logré resultados que no creía posibles. Los entrenadores son increíbles y el ambiente te motiva.\""
+        - generic [ref=e199]:
+          - generic [ref=e200]: Carlos M.
+          - generic [ref=e201]: Miembro desde 2023
+      - generic [ref=e202]:
+        - generic [ref=e203]:
+          - generic [ref=e204]: ★
+          - generic [ref=e205]: ★
+          - generic [ref=e206]: ★
+          - generic [ref=e207]: ★
+          - generic [ref=e208]: ★
+        - paragraph [ref=e209]: "\"El mejor gimnasio de la ciudad. Las clases de zumba son espectaculares y el precio es muy accesible.\""
+        - generic [ref=e210]:
+          - generic [ref=e211]: María G.
+          - generic [ref=e212]: Miembro desde 2022
+      - generic [ref=e213]:
+        - generic [ref=e214]:
+          - generic [ref=e215]: ★
+          - generic [ref=e216]: ★
+          - generic [ref=e217]: ★
+          - generic [ref=e218]: ★
+          - generic [ref=e219]: ★
+        - paragraph [ref=e220]: "\"Vine un día de prueba y ya llevo 8 meses. La calidad del equipo y la atención son excelentes.\""
+        - generic [ref=e221]:
+          - generic [ref=e222]: Roberto L.
+          - generic [ref=e223]: Miembro desde 2024
+  - generic [ref=e225]:
+    - generic [ref=e226]:
+      - text: Estamos aquí
+      - heading "CONTACTO" [level=2] [ref=e227]
+    - generic [ref=e228]:
+      - generic [ref=e229]:
+        - generic [ref=e230]:
+          - img [ref=e232]
+          - generic [ref=e235]:
+            - generic [ref=e236]: Dirección
+            - generic [ref=e237]: Humberto Albornoz
+        - generic [ref=e238]:
+          - img [ref=e240]
+          - generic [ref=e242]:
+            - generic [ref=e243]: Teléfono
+            - generic [ref=e244]: "+593983048841"
+        - generic [ref=e245]:
+          - img [ref=e247]
+          - generic [ref=e250]:
+            - generic [ref=e251]: Email
+            - generic [ref=e252]: info@bodyhealthgym.com
+        - generic [ref=e253]:
+          - img [ref=e255]
+          - generic [ref=e258]:
+            - generic [ref=e259]: Horario
+            - generic [ref=e260]: "Lun - Vie: 5am–9pm | Sáb: 6am–12pm"
+      - generic [ref=e261]:
+        - heading "Envíanos un mensaje" [level=3] [ref=e262]
+        - generic [ref=e263]:
+          - textbox "Tu nombre" [ref=e265]
+          - textbox "Tu correo" [ref=e267]
+          - textbox "Tu mensaje..." [ref=e269]
+          - button "Enviar mensaje" [ref=e270] [cursor=pointer]
+  - contentinfo [ref=e271]:
+    - generic [ref=e272]:
+      - generic [ref=e273]:
+        - link "BODY HEALTH GYM" [ref=e274] [cursor=pointer]:
+          - /url: /
+          - img [ref=e276]
+          - generic [ref=e282]: BODY HEALTH GYM
+        - generic [ref=e283]:
+          - link "Facebook" [ref=e284] [cursor=pointer]:
+            - /url: "#"
+            - img [ref=e285]
+          - link "Instagram" [ref=e287] [cursor=pointer]:
+            - /url: "#"
+            - img [ref=e288]
+          - link "TikTok" [ref=e290] [cursor=pointer]:
+            - /url: "#"
+            - img [ref=e291]
+      - generic [ref=e293]: © 2026 Body Health Gym. Todos los derechos reservados.

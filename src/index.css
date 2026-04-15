@@ -95,3 +95,118 @@ body {
 .nav-interactive:active {
   transform: scale(0.97);
 }
+
+/* ===========================
+   Input & Form Elements
+   Smooth focus transitions
+   =========================== */
+
+input,
+textarea,
+select {
+  transition-property: border-color, box-shadow, background-color;
+  transition-duration: 180ms;
+  transition-timing-function: var(--ease-strong);
+}
+
+/* ===========================
+   Modal & Overlay Animations
+   Smooth entrance from opacity + scale
+   =========================== */
+
+.modal-enter {
+  animation: modalEnter 300ms var(--ease-strong) forwards;
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ===========================
+   Toast & Notification Animations
+   Fast entry/exit with easing
+   =========================== */
+
+.toast-enter {
+  animation: toastEnter 250ms var(--ease-strong) forwards;
+}
+
+.toast-exit {
+  animation: toastExit 200ms cubic-bezier(0.32, 0, 1, 1) forwards;
+}
+
+@keyframes toastEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toastExit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+}
+
+/* ===========================
+   Dropdown & Popover Animations
+   Transform-origin aware scaling
+   =========================== */
+
+.dropdown-enter {
+  animation: dropdownEnter 200ms var(--ease-strong) forwards;
+}
+
+@keyframes dropdownEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ===========================
+   Link & Text Animations
+   Color and shadow transitions
+   =========================== */
+
+a {
+  transition-property: color, opacity;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-strong);
+}
+
+/* ===========================
+   Accessibility
+   Respect reduced motion preferences
+   =========================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

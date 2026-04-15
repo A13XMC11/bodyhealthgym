@@ -91,23 +91,28 @@ export default function AdminHeader({ onMenuClick, isSidebarOpen }) {
         onClick={onMenuClick}
         className="md:hidden text-white hover:text-gym-red btn-icon p-2 -m-2"
       >
-        <Menu className={`w-5 h-5 transition-transform ${isSidebarOpen ? 'rotate-90' : ''}`} />
+        <Menu className={`w-5 h-5 transition-transform duration-200 ease-out ${isSidebarOpen ? 'rotate-90' : ''}`} />
       </button>
 
       <div className="hidden sm:flex items-center gap-3">
-        <h1 className="text-white font-semibold text-sm">Panel de Administración</h1>
+        <img
+          src="/logoBHG.png"
+          alt="Body Health Gym"
+          className="w-6 h-6 object-contain"
+        />
+        <h1 className="text-white font-semibold text-sm tracking-wide">Panel de Administración</h1>
       </div>
 
       {/* Search - Hidden on very small screens, resized on mobile */}
       <div ref={searchRef} className="relative flex-1 max-w-xs sm:max-w-sm hidden sm:block">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gym-gray" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gym-gray transition-colors duration-160" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query && setIsOpen(true)}
           autoComplete="off"
           placeholder="Buscar cliente..."
-          className="w-full bg-gym-black border border-white/10 rounded-lg pl-9 pr-8 py-2 text-white text-xs sm:text-sm placeholder-gym-gray focus:outline-none focus:border-gym-red transition-colors"
+          className="w-full bg-gym-black border border-white/10 rounded-lg pl-9 pr-8 py-2 text-white text-xs sm:text-sm placeholder-gym-gray/70 focus:outline-none focus:border-gym-red focus:ring-1 focus:ring-gym-red/20"
         />
         {query && (
           <button
@@ -123,7 +128,7 @@ export default function AdminHeader({ onMenuClick, isSidebarOpen }) {
         )}
 
         {isOpen && (
-          <div className="absolute top-full mt-2 left-0 right-0 bg-gym-dark border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+          <div className="absolute top-full mt-2 left-0 right-0 bg-gym-dark border border-white/10 rounded-xl shadow-2xl shadow-black/50 z-50 overflow-hidden dropdown-enter">
             {results.length === 0 ? (
               <div className="px-4 py-3 text-gym-gray text-xs sm:text-sm">Sin resultados</div>
             ) : (
@@ -131,7 +136,7 @@ export default function AdminHeader({ onMenuClick, isSidebarOpen }) {
                 <button
                   key={client.id}
                   onClick={() => handleSelect(client)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 nav-interactive text-left border-b border-white/5 last:border-0"
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 nav-interactive text-left border-b border-white/5 last:border-0 transition-colors duration-150"
                 >
                   <div>
                     <div className="text-white text-xs sm:text-sm font-semibold">
@@ -156,7 +161,7 @@ export default function AdminHeader({ onMenuClick, isSidebarOpen }) {
         </div>
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-2 text-gym-gray hover:text-gym-red btn-icon text-xs sm:text-sm p-2 -m-2"
+          className="flex items-center gap-2 text-gym-gray hover:text-gym-red btn-icon text-xs sm:text-sm p-2 -m-2 transition-colors duration-160"
           title="Salir"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />

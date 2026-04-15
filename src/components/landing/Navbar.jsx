@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Dumbbell, Menu, X } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 
 const links = [
   { label: 'Servicios', href: '#servicios' },
@@ -21,15 +21,17 @@ export default function Navbar() {
   }, [])
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-gym-black/95 backdrop-blur-md shadow-lg shadow-black/50' : 'bg-transparent'}`}>
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-[background-color,box-shadow] duration-300 ${scrolled ? 'bg-gym-black/95 backdrop-blur-md shadow-lg shadow-black/50' : 'bg-transparent'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gym-red rounded-full flex items-center justify-center">
-              <Dumbbell className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-black text-lg tracking-tight text-white">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <img
+              src="/logoBHG.png"
+              alt="Body Health Gym"
+              className="w-9 h-9 object-contain transition-transform duration-200 ease-out group-hover:scale-105"
+            />
+            <span className="font-black text-base sm:text-lg tracking-tight text-white">
               BODY HEALTH <span className="text-gym-red">GYM</span>
             </span>
           </Link>
@@ -40,7 +42,7 @@ export default function Navbar() {
               <a
                 key={l.href}
                 href={l.href}
-                className="text-sm text-gym-gray hover:text-white transition-colors font-medium"
+                className="text-sm text-gym-gray hover:text-white transition-colors duration-160 font-medium"
               >
                 {l.label}
               </a>
@@ -66,20 +68,20 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         {menuOpen && (
-          <div className="md:hidden bg-gym-dark border-t border-white/5 py-4 space-y-3 px-2">
+          <div className="md:hidden bg-gym-dark border-t border-white/5 py-4 space-y-1 px-2 animate-fade-in">
             {links.map((l) => (
               <a
                 key={l.href}
                 href={l.href}
                 onClick={() => setMenuOpen(false)}
-                className="block text-gym-gray hover:text-white transition-colors py-2 font-medium"
+                className="block text-gym-gray hover:text-white transition-colors duration-160 py-2.5 px-2 rounded-lg font-medium"
               >
                 {l.label}
               </a>
             ))}
             <Link
               to="/login"
-              className="block bg-gym-red text-white text-center font-bold px-5 py-2 rounded-lg mt-2 btn-interactive"
+              className="block bg-gym-red hover:bg-gym-red-hover text-white text-center font-bold px-5 py-2.5 rounded-lg mt-2 btn-interactive"
             >
               Iniciar Sesión
             </Link>
