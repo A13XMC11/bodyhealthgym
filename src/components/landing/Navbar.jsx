@@ -25,14 +25,17 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 group">
+          <Link to="/" className="flex items-center gap-2.5 group min-w-0">
             <img
               src="/logoBHG.png"
               alt="Body Health Gym"
-              className="w-9 h-9 object-contain transition-transform duration-200 ease-out group-hover:scale-105"
+              className="w-8 h-8 sm:w-9 sm:h-9 object-contain transition-transform duration-200 ease-out group-hover:scale-105 flex-shrink-0"
             />
-            <span className="font-black text-base sm:text-lg tracking-tight text-white">
+            <span className="hidden sm:inline font-black text-base lg:text-lg tracking-tight text-white whitespace-nowrap">
               BODY HEALTH <span className="text-gym-red">GYM</span>
+            </span>
+            <span className="inline sm:hidden font-black text-sm tracking-tight text-white">
+              BH<span className="text-gym-red">G</span>
             </span>
           </Link>
 
