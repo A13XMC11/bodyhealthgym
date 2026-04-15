@@ -185,6 +185,74 @@ export async function fetchAbonosDeCuota(cuotaId) {
   return data || []
 }
 
+/**
+ * Eliminar un abono (payment) de una cuota.
+ * - Elimina el payment de la base de datos
+ * - Recalcula monto_pagado de la cuota
+ * - Si no hay más abonos, elimina la cuota
+ * - Si la cuota estaba pagada, la marca como pendiente nuevamente
+ * - Si es necesario, revierte la extensión de membresía
+ */
+export async function deleteAbono(abonoId, cuotaId, clientId) {
+  // 1. Eliminar el abono
+  const { error: deleteError } = await supabase
+    .from('payments')
+    .delete()
+    .eq('id', abonoId)
+
+  if (deleteError) throw deleteError
+
+  // 2. Recalcular monto_pagado sumando abonos restantes
+  const { data: sumData } = await supabase
+    .from('payments')
+    .select('monto')
+    .eq('cuota_id', cuotaId)
+
+  const totalPagado = (sumData || []).reduce((acc, p) => acc + Number(p.monto), 0)
+
+  // 3. Si no hay más abonos, eliminar la cuota
+  if (totalPagado === 0) {
+    const { error: deleteQuotaError } = await supabase
+      .from('cuotas')
+      .delete()
+      .eq('id', cuotaId)
+
+    if (deleteQuotaError) throw deleteQuotaError
+
+    // Revertir extensión de membresía si aplica
+    const { data: membresia } = await supabase
+      .from('memberships')
+      .select('fecha_vencimiento')
+      .eq('client_id', clientId)
+      .maybeSingle()
+
+    if (membresia && membresia.fecha_vencimiento) {
+      const hoy = parseFechaLocal(fechaHoy())
+      const vencimiento = parseFechaLocal(membresia.fecha_vencimiento)
+      const diasDiferencia = Math.floor((vencimiento - hoy) / (1000 * 60 * 60 * 24))
+
+      // Si la diferencia es aproximadamente 30 días (membresía reciente), la eliminamos
+      if (diasDiferencia >= 25 && diasDiferencia <= 35) {
+        await supabase.from('memberships').delete().eq('client_id', clientId)
+        window.dispatchEvent(new CustomEvent('membership-updated', {
+          detail: { client_id: clientId, fecha_vencimiento: null },
+        }))
+      }
+    }
+  } else {
+    // 4. Si hay abonos restantes, actualizar monto_pagado
+    const { data: cuota, error: updateError } = await supabase
+      .from('cuotas')
+      .update({ monto_pagado: totalPagado, estado: 'pendiente' })
+      .eq('id', cuotaId)
+      .select()
+      .single()
+
+    if (updateError) throw updateError
+    return enriquecerCuota(cuota)
+  }
+}
+
 // Helpers internos
 
 function enriquecerCuota(cuota) {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { X, CheckCircle } from 'lucide-react'
+import { X, CheckCircle, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -9,6 +9,7 @@ import {
   crearCuota,
   registrarAbono,
   fetchAbonosDeCuota,
+  deleteAbono,
 } from '../../lib/cuotas'
 
 const MONTO_MENSUAL = 25
@@ -20,6 +21,8 @@ export default function AbonosModal({ client, onClose, onAbonoRegistrado }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [pagada, setPagada] = useState(false)
+  const [confirmDeleteAbono, setConfirmDeleteAbono] = useState(null)
+  const [deletingId, setDeletingId] = useState(null)
 
   const mes = mesHoy()
 
@@ -82,6 +85,32 @@ export default function AbonosModal({ client, onClose, onAbonoRegistrado }) {
       toast.error(err.message || 'Error al registrar abono')
     }
     setSaving(false)
+  }
+
+  const handleDeleteAbono = async (abono) => {
+    setDeletingId(abono.id)
+    try {
+      const resultado = await deleteAbono(abono.id, cuota.id, client.id)
+
+      if (resultado) {
+        // Hay abonos restantes, actualizar cuota y abonos
+        setCuota(resultado)
+        const abonosActualizados = await fetchAbonosDeCuota(cuota.id)
+        setAbonos(abonosActualizados)
+        toast.success('Abono eliminado')
+      } else {
+        // Se eliminó la cuota completamente
+        setCuota(null)
+        setAbonos([])
+        toast.success('Abono eliminado')
+      }
+
+      setConfirmDeleteAbono(null)
+      onAbonoRegistrado()
+    } catch (err) {
+      toast.error(err.message || 'Error al eliminar abono')
+    }
+    setDeletingId(null)
   }
 
   const nombreMes = mes
@@ -226,10 +255,19 @@ export default function AbonosModal({ client, onClose, onAbonoRegistrado }) {
                   <div className="space-y-1.5 max-h-36 overflow-y-auto">
                     {abonos.map((a) => (
                       <div key={a.id} className="flex items-center justify-between bg-gym-black border border-white/5 rounded-lg px-3 py-2">
-                        <span className="text-gym-gray text-xs">
-                          {format(parseFechaLocal(a.fecha_pago), 'dd MMM', { locale: es })}
-                        </span>
-                        <span className="text-white text-sm font-semibold">${Number(a.monto).toFixed(2)}</span>
+                        <div className="flex-1 flex items-center gap-2">
+                          <span className="text-gym-gray text-xs">
+                            {format(parseFechaLocal(a.fecha_pago), 'dd MMM', { locale: es })}
+                          </span>
+                          <span className="text-white text-sm font-semibold">${Number(a.monto).toFixed(2)}</span>
+                        </div>
+                        <button
+                          onClick={() => setConfirmDeleteAbono(a)}
+                          className="p-1 text-gym-gray hover:text-red-400 transition-colors"
+                          title="Eliminar abono"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -239,6 +277,49 @@ export default function AbonosModal({ client, onClose, onAbonoRegistrado }) {
           )}
         </div>
       </div>
+
+      {/* Confirmación: eliminar abono */}
+      {confirmDeleteAbono && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+          <div className="bg-gym-dark border border-red-500/30 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-500/10 rounded-lg">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <h3 className="text-white font-bold text-base">Eliminar abono</h3>
+            </div>
+            <p className="text-gym-gray text-sm mb-1">
+              ¿Eliminar el abono de{' '}
+              <span className="text-white font-semibold">
+                ${Number(confirmDeleteAbono.monto).toFixed(2)}
+              </span>
+              ?
+            </p>
+            <p className="text-gym-gray text-xs mb-6">
+              Realizado el {format(parseFechaLocal(confirmDeleteAbono.fecha_pago), 'dd MMMM yyyy', { locale: es })}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDeleteAbono(null)}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 text-gym-gray hover:text-white text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleDeleteAbono(confirmDeleteAbono)}
+                disabled={deletingId === confirmDeleteAbono.id}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deletingId === confirmDeleteAbono.id ? (
+                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Eliminando...</>
+                ) : (
+                  <><Trash2 className="w-4 h-4" /> Eliminar</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
